@@ -15,5 +15,11 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Realm odysseus, например http://localhost:8180/realms/odysseus. Без значения по умолчанию.
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
