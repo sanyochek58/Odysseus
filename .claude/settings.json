@@ -1,0 +1,45 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Edit",
+      "Write",
+      "Bash(make *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git checkout*)",
+      "Bash(git switch*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git mv*)",
+      "Bash(git worktree*)",
+      "Bash(ls*)",
+      "Bash(cp*)",
+      "Bash(mv*)",
+      "Bash(mkdir*)"
+    ],
+    "deny": [
+      "Bash(git push*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean*)",
+      "Bash(git rebase*)",
+      "Bash(git merge*)",
+      "Bash(rm -rf*)",
+      "Bash(./gradlew*)",
+      "Bash(*/gradlew*)",
+      "Bash(gradle*)",
+      "Bash(docker*)",
+      "Bash(sudo*)",
+      "Bash(curl*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/secrets/**)"
+    ]
+  }
+}
