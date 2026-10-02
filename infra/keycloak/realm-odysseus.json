@@ -7,11 +7,26 @@
   "accessTokenLifespan": 900,
   "roles": {
     "realm": [
-      { "name": "OWNER", "description": "Владелец workspace" },
-      { "name": "ADMIN", "description": "Администратор workspace" },
-      { "name": "TECH_LEAD", "description": "Технический лид" },
-      { "name": "MANAGER", "description": "Менеджер" },
-      { "name": "MEMBER", "description": "Участник" }
+      {
+        "name": "OWNER",
+        "description": "Владелец workspace"
+      },
+      {
+        "name": "ADMIN",
+        "description": "Администратор workspace"
+      },
+      {
+        "name": "TECH_LEAD",
+        "description": "Технический лид"
+      },
+      {
+        "name": "MANAGER",
+        "description": "Менеджер"
+      },
+      {
+        "name": "MEMBER",
+        "description": "Участник"
+      }
     ]
   },
   "organizations": [
@@ -20,8 +35,17 @@
       "name": "Test Org",
       "alias": "test-org",
       "enabled": true,
-      "domains": [{ "name": "test-org.local", "verified": false }],
-      "members": [{ "username": "test-user" }]
+      "domains": [
+        {
+          "name": "test-org.local",
+          "verified": false
+        }
+      ],
+      "members": [
+        {
+          "username": "test-user"
+        }
+      ]
     }
   ],
   "users": [
@@ -33,7 +57,11 @@
       "firstName": "Test",
       "lastName": "User",
       "credentials": [
-        { "type": "password", "value": "${KEYCLOAK_TEST_USER_PASSWORD}", "temporary": false }
+        {
+          "type": "password",
+          "value": "${KEYCLOAK_TEST_USER_PASSWORD}",
+          "temporary": false
+        }
       ]
     }
   ],
@@ -45,24 +73,56 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
-      "redirectUris": ["http://localhost:*", "http://localhost/*"],
-      "webOrigins": ["+"],
-      "attributes": { "pkce.code.challenge.method": "S256" },
-      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "basic", "email", "organization"],
-      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"],
+      "redirectUris": [
+        "http://localhost:*",
+        "http://localhost/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "basic",
+        "email",
+        "organization"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "organization",
+      "description": "Организация пользователя, claim organization: {alias: {id}}",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
       "protocolMappers": [
         {
-          "name": "organization-id",
+          "name": "organization",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-organization-membership-mapper",
           "config": {
             "claim.name": "organization",
-            "jsonType.label": "JSON",
             "id.token.claim": "true",
             "access.token.claim": "true",
+            "introspection.token.claim": "true",
             "userinfo.token.claim": "true",
             "addOrganizationId": "true",
-            "addOrganizationAttributes": "false"
+            "addOrganizationAttributes": "false",
+            "jsonType.label": "JSON"
           }
         }
       ]

@@ -5,7 +5,7 @@ Q      = scripts/quiet.sh
 NEED   = test -n "$(SVC)" || { echo "SVC не задан, пример: make build SVC=task-service"; exit 1; }
 DC     = docker compose -f infra/compose/docker-compose.yml
 
-.PHONY: help orchestrator check-env build test test-class it run image up down ps logs wt-clean
+.PHONY: help orchestrator check-env build test test-class it run image up down ps logs wt-clean realm-check smoke
 
 help: ## список команд
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## / : /'
@@ -55,3 +55,10 @@ wt-clean: ## удалить чистые worktree агентов: make wt-clean 
 
 logs: ## хвост логов: make logs SVC=kafka
 	@$(DC) logs --tail=100 $(SVC)
+
+realm-check: ## проверка realm odysseus и токена test-user (после make up)
+	@scripts/realm-check.sh
+
+smoke: ## смоук запущенного сервиса: make smoke SVC=workspace-service
+	@$(NEED)
+	@scripts/smoke.sh $(SVC)
