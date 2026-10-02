@@ -28,6 +28,19 @@ resp=$(curl -s -X POST "$KC/realms/odysseus/protocol/openid-connect/token" \
   --data-urlencode "password=$KEYCLOAK_TEST_USER_PASSWORD")
 tok=$(printf '%s' "$resp" | jq -r '.access_token // empty')
 [ -n "$tok" ] || { echo "FAIL токен не получен (make realm-check)"; exit 1; }
-t=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $tok" "$BASE$PATH_API") || t=000
-check "с токеном test-user" "200|403" "$t" "(200: есть членство в workspace; 403: токен валиден, но test-user ещё не участник workspace, список требует членства)"
+auth=(-H "Authorization: Bearer $tok")
+# id организации из токена (он же id workspace)
+org=$(printf '%s' "$tok" | cut -d. -f2 | tr '_-' '/+' \
+  | { read -r p; while [ $(( ${#p} % 4 )) -ne 0 ]; do p="$p="; done; printf '%s' "$p" | base64 -d 2>/dev/null; } \
+  | jq -r '.organization | to_entries[0].value.id // empty')
+[ -n "$org" ] || { echo "FAIL в токене нет organization (make realm-check)"; exit 1; }
+# POST: 201 первый раз, 409 если workspace уже создан прошлым прогоном
+p=$(curl -s -o /dev/null -w '%{http_code}' -X POST "${auth[@]}" -H 'Content-Type: application/json' -d '{"name":"Smoke Workspace"}' "$BASE$PATH_API") || p=000
+check "создание workspace" "201|409" "$p" "(409: уже создан прошлым прогоном)"
+t=$(curl -s -o /dev/null -w '%{http_code}' "${auth[@]}" "$BASE$PATH_API") || t=000
+check "список workspace" 200 "$t" ""
+o=$(curl -s -o /dev/null -w '%{http_code}' "${auth[@]}" "$BASE$PATH_API/$org") || o=000
+check "свой workspace" 200 "$o" ""
+f=$(curl -s -o /dev/null -w '%{http_code}' "${auth[@]}" "$BASE$PATH_API/00000000-0000-4000-8000-000000000000") || f=000
+check "чужой workspace" "403|404" "$f" ""
 exit $fail

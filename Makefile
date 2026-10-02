@@ -5,7 +5,7 @@ Q      = scripts/quiet.sh
 NEED   = test -n "$(SVC)" || { echo "SVC не задан, пример: make build SVC=task-service"; exit 1; }
 DC     = docker compose -f infra/compose/docker-compose.yml
 
-.PHONY: help orchestrator check-env build test test-class it run image up down ps logs wt-clean realm-check smoke
+.PHONY: help orchestrator check-env build test test-class it run image up down ps logs wt-clean realm-check smoke run-bg stop
 
 help: ## список команд
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## / : /'
@@ -33,9 +33,17 @@ it: ## интеграционные тесты (Testcontainers), только te
 	@$(NEED)
 	@$(Q) "cd backend && ./gradlew -q --console=plain :services:$(SVC):integrationTest"
 
-run: ## запуск сервиса локально
+run: ## запуск сервиса локально (окружение из make up, секреты из .env)
 	@$(NEED)
-	@cd backend && ./gradlew :services:$(SVC):bootRun
+	@scripts/run-local.sh $(SVC)
+
+run-bg: ## запуск сервиса в фоне и ожидание health: make run-bg SVC=workspace-service
+	@$(NEED)
+	@scripts/run-local.sh $(SVC) bg
+
+stop: ## остановить сервис, запущенный через run-bg
+	@$(NEED)
+	@scripts/stop-local.sh $(SVC)
 
 image: ## docker-образ сервиса
 	@$(NEED)

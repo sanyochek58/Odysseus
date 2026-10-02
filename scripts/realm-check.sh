@@ -23,8 +23,13 @@ status=${resp##*$'\n'}
 [ "$status" = 200 ] || { echo "FAIL токен test-user: HTTP $status (пароль в .env должен совпадать с импортом realm, при смене пересоздайте keycloak: make down, make up)"; exit 1; }
 echo "ok токен test-user получен"
 
-org=$(printf '%s' "${resp%$'\n'*}" | jq -r '.access_token' | cut -d. -f2 | tr '_-' '/+' \
-  | { read -r p; while [ $(( ${#p} % 4 )) -ne 0 ]; do p="$p="; done; printf '%s' "$p" | base64 -d 2>/dev/null; } \
-  | jq -r '.organization | if type=="object" and length==1 then (to_entries[0].value.id // empty) else empty end')
+claims=$(printf '%s' "${resp%$'\n'*}" | jq -r '.access_token' | cut -d. -f2 | tr '_-' '/+' \
+  | { read -r p; while [ $(( ${#p} % 4 )) -ne 0 ]; do p="$p="; done; printf '%s' "$p" | base64 -d 2>/dev/null; })
+for c in sub email aud; do
+  [ -n "$(printf '%s' "$claims" | jq -r ".$c // empty")" ] || { echo "FAIL в токене нет claim $c (scope basic/email/odysseus-api у odysseus-dev)"; exit 1; }
+done
+[ "$(printf '%s' "$claims" | jq -r '.email_verified')" = true ] || { echo "FAIL email_verified не true"; exit 1; }
+echo "ok claims sub, email, email_verified=true, aud"
+org=$(printf '%s' "$claims" | jq -r '.organization | if type=="object" and length==1 then (to_entries[0].value.id // empty) else empty end')
 [ -n "$org" ] || { echo "FAIL в токене нет claim organization вида {alias: {id}} (ровно одна организация)"; exit 1; }
 echo "ok claim organization, id: $org"
