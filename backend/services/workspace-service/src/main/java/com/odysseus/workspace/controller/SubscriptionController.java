@@ -1,5 +1,6 @@
 package com.odysseus.workspace.controller;
 
+import com.odysseus.workspace.config.RequiresMembership;
 import com.odysseus.workspace.config.SubscriptionNotRequired;
 import com.odysseus.workspace.dto.SubscriptionExtendRequest;
 import com.odysseus.workspace.dto.SubscriptionResponse;
@@ -25,6 +26,7 @@ public class SubscriptionController {
     private final SubscriptionService subscriptionService;
 
     @GetMapping("/current")
+    @RequiresMembership
     public SubscriptionResponse current() {
         return subscriptionService.getCurrent();
     }

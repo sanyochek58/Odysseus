@@ -1,5 +1,6 @@
 package com.odysseus.workspace.controller;
 
+import com.odysseus.workspace.config.RequiresMembership;
 import com.odysseus.workspace.config.SubscriptionNotRequired;
 import com.odysseus.workspace.dto.WorkspaceRequest;
 import com.odysseus.workspace.dto.WorkspaceResponse;
@@ -43,11 +44,13 @@ public class WorkspaceController {
     }
 
     @GetMapping
+    @RequiresMembership
     public Page<WorkspaceResponse> list(Pageable pageable) {
         return workspaceService.list(pageable);
     }
 
     @GetMapping("/{id}")
+    @RequiresMembership
     public WorkspaceResponse get(@PathVariable UUID id) {
         return workspaceService.get(id);
     }

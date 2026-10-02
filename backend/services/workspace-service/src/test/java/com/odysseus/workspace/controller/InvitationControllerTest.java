@@ -87,6 +87,15 @@ class InvitationControllerTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("GET /invitations: без записи Member, 403 ProblemDetail")
+    void list_noMember_returns403() throws Exception {
+        mvc.perform(get("/api/v1/invitations").with(token(WORKSPACE_A)))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        verifyNoInteractions(invitationService);
+    }
+
+    @Test
     @DisplayName("DELETE /invitations/{id}: чужое приглашение, 404")
     void revoke_notFound_returns404() throws Exception {
         when(invitationService.revoke(id)).thenThrow(new NotFoundException("Приглашение не найдено"));

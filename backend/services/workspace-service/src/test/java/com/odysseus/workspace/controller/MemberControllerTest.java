@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -39,6 +40,24 @@ class MemberControllerTest extends ApiTestBase {
         mvc.perform(get("/api/v1/members").with(token(WORKSPACE_A, "MEMBER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].role").value("MEMBER"));
+    }
+
+    @Test
+    @DisplayName("GET /members: без записи Member, 403 ProblemDetail")
+    void list_noMember_returns403() throws Exception {
+        mvc.perform(get("/api/v1/members").with(token(WORKSPACE_A)))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        verifyNoInteractions(memberService);
+    }
+
+    @Test
+    @DisplayName("GET /members/{id}: без записи Member, 403 ProblemDetail")
+    void get_noMember_returns403() throws Exception {
+        mvc.perform(get("/api/v1/members/{id}", id).with(token(WORKSPACE_A)))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        verifyNoInteractions(memberService);
     }
 
     @Test

@@ -177,4 +177,22 @@ class WorkspaceControllerTest extends ApiTestBase {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
         verifyNoInteractions(workspaceService);
     }
+
+    @Test
+    @DisplayName("GET /workspaces: без записи Member, 403 ProblemDetail")
+    void list_noMember_returns403() throws Exception {
+        mvc.perform(get("/api/v1/workspaces").with(token(WORKSPACE_A)))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        verifyNoInteractions(workspaceService);
+    }
+
+    @Test
+    @DisplayName("GET /workspaces/{id}: без записи Member, 403 ProblemDetail")
+    void get_noMember_returns403() throws Exception {
+        mvc.perform(get("/api/v1/workspaces/{id}", WORKSPACE_A).with(token(WORKSPACE_A)))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        verifyNoInteractions(workspaceService);
+    }
 }

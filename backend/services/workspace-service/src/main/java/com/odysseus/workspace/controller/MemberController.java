@@ -1,5 +1,6 @@
 package com.odysseus.workspace.controller;
 
+import com.odysseus.workspace.config.RequiresMembership;
 import com.odysseus.workspace.dto.MemberResponse;
 import com.odysseus.workspace.dto.MemberRoleRequest;
 import com.odysseus.workspace.service.MemberService;
@@ -28,11 +29,13 @@ public class MemberController {
     private final MemberService memberService;
 
     @GetMapping
+    @RequiresMembership
     public Page<MemberResponse> list(Pageable pageable) {
         return memberService.list(pageable);
     }
 
     @GetMapping("/{id}")
+    @RequiresMembership
     public MemberResponse get(@PathVariable UUID id) {
         return memberService.get(id);
     }

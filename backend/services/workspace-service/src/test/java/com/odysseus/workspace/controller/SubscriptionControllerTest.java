@@ -5,6 +5,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -33,6 +34,15 @@ class SubscriptionControllerTest extends ApiTestBase {
         mvc.perform(get("/api/v1/subscriptions/current").with(token(WORKSPACE_A, "MEMBER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.expiresAt").exists());
+    }
+
+    @Test
+    @DisplayName("GET /subscriptions/current: без записи Member, 403 ProblemDetail")
+    void current_noMember_returns403() throws Exception {
+        mvc.perform(get("/api/v1/subscriptions/current").with(token(WORKSPACE_A)))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        verifyNoInteractions(subscriptionService);
     }
 
     @Test
