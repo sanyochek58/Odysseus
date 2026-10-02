@@ -16,7 +16,11 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
  */
 public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
-    /** Claim Keycloak Organizations. Нужен маппер с «Add organization id»: {@code {"alias": {"id": "uuid"}}}. */
+    /**
+     * Claim Keycloak Organizations: {@code {"alias": {"id": "uuid"}}}. Маппер Organization Membership должен иметь
+     * {@code addOrganizationId=true}, {@code jsonType.label=JSON} и явно {@code multivalued=true}: в realm-импорте
+     * умолчание UI не применяется, без multivalued Keycloak 26.4 отдаёт {@code {"alias": {}}} без id.
+     */
     static final String ORGANIZATION_CLAIM = "organization";
 
     private static final String ORGANIZATION_ID_KEY = "id";
