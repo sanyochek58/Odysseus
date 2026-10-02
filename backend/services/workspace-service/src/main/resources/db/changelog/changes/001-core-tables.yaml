@@ -1,0 +1,100 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-workspace
+      author: backend-dev
+      changes:
+        - createTable:
+            tableName: workspace
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: workspace_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: name, type: varchar(200), constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+        - createIndex:
+            tableName: workspace
+            indexName: ux_workspace_workspace_id
+            unique: true
+            columns:
+              - column: {name: workspace_id}
+      rollback:
+        - dropTable:
+            tableName: workspace
+  - changeSet:
+      id: 001-member
+      author: backend-dev
+      changes:
+        - createTable:
+            tableName: member
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: workspace_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: user_id, type: varchar(64), constraints: {nullable: false}}
+              - column: {name: email, type: varchar(254)}
+              - column: {name: role, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+        - createIndex:
+            tableName: member
+            indexName: ux_member_workspace_user
+            unique: true
+            columns:
+              - column: {name: workspace_id}
+              - column: {name: user_id}
+        - createIndex:
+            tableName: member
+            indexName: ix_member_workspace_role
+            columns:
+              - column: {name: workspace_id}
+              - column: {name: role}
+      rollback:
+        - dropTable:
+            tableName: member
+  - changeSet:
+      id: 001-invitation
+      author: backend-dev
+      changes:
+        - createTable:
+            tableName: invitation
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: workspace_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: email, type: varchar(254), constraints: {nullable: false}}
+              - column: {name: role, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: status, type: varchar(16), constraints: {nullable: false}}
+              - column: {name: invited_by, type: varchar(64), constraints: {nullable: false}}
+              - column: {name: expires_at, type: timestamptz, constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+        - createIndex:
+            tableName: invitation
+            indexName: ix_invitation_workspace_status
+            columns:
+              - column: {name: workspace_id}
+              - column: {name: status}
+        - sql:
+            sql: CREATE UNIQUE INDEX ux_invitation_pending_email ON invitation (workspace_id, email) WHERE status = 'PENDING'
+      rollback:
+        - dropTable:
+            tableName: invitation
+  - changeSet:
+      id: 001-subscription
+      author: backend-dev
+      changes:
+        - createTable:
+            tableName: subscription
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: workspace_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: expires_at, type: timestamptz, constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+        - createIndex:
+            tableName: subscription
+            indexName: ux_subscription_workspace_id
+            unique: true
+            columns:
+              - column: {name: workspace_id}
+      rollback:
+        - dropTable:
+            tableName: subscription
