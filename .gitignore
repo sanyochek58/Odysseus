@@ -22,8 +22,8 @@ Thumbs.db
 *.log
 
 
-# CLAUDE
-CLAUDE.md
+# Claude Code (локальные настройки)
+.claude/settings.local.json
 
 
 # .env
