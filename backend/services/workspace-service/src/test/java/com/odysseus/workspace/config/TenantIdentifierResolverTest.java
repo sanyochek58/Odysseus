@@ -30,15 +30,26 @@ class TenantIdentifierResolverTest {
     }
 
     @Test
-    @DisplayName("resolveCurrentTenantIdentifier: без контекста исключение")
-    void resolveCurrentTenantIdentifier_noContext_throws() {
-        assertThatThrownBy(resolver::resolveCurrentTenantIdentifier).isInstanceOf(IllegalStateException.class);
+    @DisplayName("resolveCurrentTenantIdentifier: без контекста отдаёт служебный id без данных, не корневой")
+    void resolveCurrentTenantIdentifier_noContext_returnsNoTenant() {
+        UUID resolved = resolver.resolveCurrentTenantIdentifier();
+
+        assertThat(resolved).isEqualTo(TenantContext.NO_TENANT);
+        assertThat(resolver.isRoot(resolved)).isFalse();
+    }
+
+    @Test
+    @DisplayName("callAs: служебный id отсутствия контекста нельзя выдать за workspace")
+    void callAs_noTenantId_throws() {
+        assertThatThrownBy(() -> TenantContext.callAs(TenantContext.NO_TENANT, () -> null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     @DisplayName("isRoot: ни workspace, ни системный контекст не корневые")
     void isRoot_anyTenant_returnsFalse() {
         assertThat(resolver.isRoot(TenantContext.SYSTEM)).isFalse();
+        assertThat(resolver.isRoot(TenantContext.NO_TENANT)).isFalse();
         assertThat(resolver.isRoot(UUID.randomUUID())).isFalse();
     }
 
