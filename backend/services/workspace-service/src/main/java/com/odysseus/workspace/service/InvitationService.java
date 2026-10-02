@@ -79,10 +79,11 @@ public class InvitationService {
     @Transactional
     public MemberResponse accept(UUID id, String userId, String email) {
         Invitation invitation = find(id);
-        requirePending(invitation);
+        // Сначала email (403), потом статус и срок (409): статус чужого приглашения не раскрывается.
         if (email == null || !normalize(email).equals(invitation.getEmail())) {
             throw new ForbiddenOperationException("Приглашение выдано на другой email");
         }
+        requirePending(invitation);
         if (!clock.instant().isBefore(invitation.getExpiresAt())) {
             throw new ConflictException("Срок приглашения истёк");
         }

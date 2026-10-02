@@ -192,4 +192,27 @@ class InvitationServiceTest {
 
         assertThatThrownBy(() -> service().accept(id, "user-2", "new@acme.io")).isInstanceOf(ConflictException.class);
     }
+
+    @Test
+    @DisplayName("accept: чужой email и уже обработанное приглашение, 403 (статус не раскрывается)")
+    void accept_otherEmailAndAccepted_throwsForbidden() {
+        Invitation invitation = pending();
+        invitation.setStatus(InvitationStatus.ACCEPTED);
+        when(invitationRepository.findById(id)).thenReturn(Optional.of(invitation));
+
+        assertThatThrownBy(() -> service().accept(id, "user-2", "evil@x.io"))
+                .isInstanceOf(ForbiddenOperationException.class);
+        verify(memberRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("accept: чужой email и отозванное приглашение, 403")
+    void accept_otherEmailAndRevoked_throwsForbidden() {
+        Invitation invitation = pending();
+        invitation.setStatus(InvitationStatus.REVOKED);
+        when(invitationRepository.findById(id)).thenReturn(Optional.of(invitation));
+
+        assertThatThrownBy(() -> service().accept(id, "user-2", null))
+                .isInstanceOf(ForbiddenOperationException.class);
+    }
 }

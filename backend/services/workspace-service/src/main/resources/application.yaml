@@ -21,6 +21,9 @@ spring:
         jwt:
           # Realm odysseus, например http://localhost:8180/realms/odysseus. Без значения по умолчанию.
           issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          # Токен должен быть выписан для API (claim aud). Пустое значение не допускается (SecurityConfig).
+          audiences:
+            - ${KEYCLOAK_AUDIENCE:odysseus-api}
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
   kafka:

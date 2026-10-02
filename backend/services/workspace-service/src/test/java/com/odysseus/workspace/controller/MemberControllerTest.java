@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.odysseus.workspace.config.WorkspaceRole;
 import com.odysseus.workspace.dto.MemberResponse;
 import com.odysseus.workspace.exception.ConflictException;
+import com.odysseus.workspace.exception.ForbiddenOperationException;
 import com.odysseus.workspace.exception.NotFoundException;
 import java.time.Instant;
 import java.util.List;
@@ -119,7 +120,7 @@ class MemberControllerTest extends ApiTestBase {
     void remove_admin_returns204() throws Exception {
         mvc.perform(delete("/api/v1/members/{id}", id).with(token(WORKSPACE_A, "ADMIN")))
                 .andExpect(status().isNoContent());
-        verify(memberService).remove(id);
+        verify(memberService).remove(id, WorkspaceRole.ADMIN);
     }
 
     @Test
@@ -133,9 +134,37 @@ class MemberControllerTest extends ApiTestBase {
     @Test
     @DisplayName("DELETE /members/{id}: чужой участник, 404")
     void remove_notFound_returns404() throws Exception {
-        doThrow(new NotFoundException("Участник не найден")).when(memberService).remove(id);
+        doThrow(new NotFoundException("Участник не найден")).when(memberService).remove(id, WorkspaceRole.OWNER);
 
         mvc.perform(delete("/api/v1/members/{id}", id).with(token(WORKSPACE_A, "OWNER")))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("DELETE /members/{id}: ADMIN удаляет OWNER, 403 ProblemDetail")
+    void remove_ownerByAdmin_returns403() throws Exception {
+        doThrow(new ForbiddenOperationException("Удалить владельца может только владелец"))
+                .when(memberService).remove(id, WorkspaceRole.ADMIN);
+
+        mvc.perform(delete("/api/v1/members/{id}", id).with(token(WORKSPACE_A, "ADMIN")))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+    }
+
+    @Test
+    @DisplayName("DELETE /members/{id}: OWNER, в сервис передаётся роль OWNER")
+    void remove_owner_passesOwnerRole() throws Exception {
+        mvc.perform(delete("/api/v1/members/{id}", id).with(token(WORKSPACE_A, "OWNER")))
+                .andExpect(status().isNoContent());
+        verify(memberService).remove(id, WorkspaceRole.OWNER);
+    }
+
+    @Test
+    @DisplayName("DELETE /members/{id}: последний OWNER, 409")
+    void remove_lastOwner_returns409() throws Exception {
+        doThrow(new ConflictException("последний владелец")).when(memberService).remove(id, WorkspaceRole.OWNER);
+
+        mvc.perform(delete("/api/v1/members/{id}", id).with(token(WORKSPACE_A, "OWNER")))
+                .andExpect(status().isConflict());
     }
 }
