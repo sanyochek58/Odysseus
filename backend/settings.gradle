@@ -1,0 +1,12 @@
+rootProject.name = 'odysseus'
+
+include ':services:workspace-service'
+include ':services:project-service'
+include ':services:task-service'
+include ':services:calendar-service'
+include ':services:document-service'
+include ':services:ai-service'
+include ':services:mail-service'
+include ':services:call-service'
+include ':services:infra-service'
+include ':services:payment-service'
