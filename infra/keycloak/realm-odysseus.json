@@ -34,8 +34,7 @@
       "lastName": "User",
       "credentials": [
         { "type": "password", "value": "${KEYCLOAK_TEST_USER_PASSWORD}", "temporary": false }
-      ],
-      "realmRoles": ["OWNER"]
+      ]
     }
   ],
   "clients": [
@@ -49,8 +48,8 @@
       "redirectUris": ["http://localhost:*", "http://localhost/*"],
       "webOrigins": ["+"],
       "attributes": { "pkce.code.challenge.method": "S256" },
-      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "basic", "email"],
-      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt", "organization"],
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "basic", "email", "organization"],
+      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"],
       "protocolMappers": [
         {
           "name": "organization-id",
