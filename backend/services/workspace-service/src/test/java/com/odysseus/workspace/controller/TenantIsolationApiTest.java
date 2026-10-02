@@ -1,25 +1,44 @@
 package com.odysseus.workspace.controller;
 
+import com.odysseus.workspace.service.WorkspaceService;
+import com.odysseus.workspace.service.MemberService;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.odysseus.workspace.config.TenantContext;
+import com.odysseus.workspace.config.WorkspaceRole;
 import com.odysseus.workspace.dto.WorkspaceResponse;
 import com.odysseus.workspace.exception.NotFoundException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
 /** Изоляция тенантов на веб-уровне: тенант берётся только из токена. Изоляцию на уровне БД проверяют интеграционные тесты. */
+@WebMvcTest({WorkspaceController.class, MemberController.class})
 class TenantIsolationApiTest extends ApiTestBase {
+
+    @MockitoBean
+    private WorkspaceService workspaceService;
+
+    @MockitoBean
+    private MemberService memberService;
 
     @Test
     @DisplayName("GET /workspaces/{id}: пользователь A запрашивает workspace B, 404 и сервис работает в контексте A")
@@ -55,20 +74,54 @@ class TenantIsolationApiTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("Подписка проверяется по workspace из токена, а не из запроса")
-    void write_guardUsesTokenTenant() throws Exception {
+    @DisplayName("Роль: OWNER в A и MEMBER в B, с токеном B операция OWNER даёт 403")
+    void changeRole_ownerInAMemberInB_tokenB_returns403() throws Exception {
+        when(memberRolePort.findRole(WORKSPACE_A, USER_ID)).thenReturn(Optional.of(WorkspaceRole.OWNER));
+        when(memberRolePort.findRole(WORKSPACE_B, USER_ID)).thenReturn(Optional.of(WorkspaceRole.MEMBER));
+
+        mvc.perform(put("/api/v1/members/{id}/role", UUID.randomUUID()).with(tokenOf(WORKSPACE_B, true))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"ADMIN\"}"))
+                .andExpect(status().isForbidden());
+
+        verify(memberRolePort).findRole(WORKSPACE_B, USER_ID);
+        verify(memberRolePort, never()).findRole(eq(WORKSPACE_A), any());
+        verifyNoInteractions(memberService);
+    }
+
+    @Test
+    @DisplayName("PUT /workspaces/{id}: OWNER A переименовывает workspace B, 404 и сервис работает в контексте A")
+    void rename_otherWorkspace_returns404InTenantA() throws Exception {
+        List<UUID> seenTenants = new ArrayList<>();
+        when(workspaceService.rename(eq(WORKSPACE_B), any())).thenAnswer(invocation -> {
+            seenTenants.add(TenantContext.requireWorkspaceId());
+            throw new NotFoundException("Workspace не найден");
+        });
+
+        mvc.perform(put("/api/v1/workspaces/{id}", WORKSPACE_B).with(token(WORKSPACE_A, "OWNER"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Acme\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+
+        assertThat(seenTenants).containsExactly(WORKSPACE_A);
+    }
+
+    @Test
+    @DisplayName("PUT /workspaces/{id}: свой id, 200; подписка проверяется по workspace из токена")
+    void rename_ownWorkspace_returns200AndGuardUsesTokenTenant() throws Exception {
         List<UUID> checked = new ArrayList<>();
         when(subscriptionExpiryPort.findExpiresAt(any())).thenAnswer(invocation -> {
             checked.add(invocation.getArgument(0));
-            return java.util.Optional.of(Instant.now().plusSeconds(60));
+            return Optional.of(Instant.now().plusSeconds(60));
         });
-        when(workspaceService.create(any(), any(), any()))
+        when(workspaceService.rename(eq(WORKSPACE_A), any()))
                 .thenReturn(new WorkspaceResponse(WORKSPACE_A, "Acme", Instant.now(), Instant.now()));
 
-        mvc.perform(post("/api/v1/workspaces").with(token(WORKSPACE_A, "OWNER"))
+        // POST /workspaces помечен @SubscriptionNotRequired, поэтому берём защищённую запись PUT
+        mvc.perform(put("/api/v1/workspaces/{id}", WORKSPACE_A).with(token(WORKSPACE_A, "OWNER"))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Acme\"}"))
-                .andExpect(status().isCreated());
+                .andExpect(status().isOk());
 
         assertThat(checked).containsExactly(WORKSPACE_A);
+        verify(workspaceService).rename(eq(WORKSPACE_A), any());
     }
 }

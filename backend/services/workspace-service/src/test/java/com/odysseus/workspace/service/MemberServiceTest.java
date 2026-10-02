@@ -11,6 +11,7 @@ import com.odysseus.workspace.config.WorkspaceRole;
 import com.odysseus.workspace.dto.MemberResponse;
 import com.odysseus.workspace.entity.Member;
 import com.odysseus.workspace.exception.ConflictException;
+import com.odysseus.workspace.exception.ForbiddenOperationException;
 import com.odysseus.workspace.exception.NotFoundException;
 import com.odysseus.workspace.mapper.MemberMapperImpl;
 import com.odysseus.workspace.repository.MemberRepository;
@@ -82,7 +83,8 @@ class MemberServiceTest {
     @DisplayName("changeRole: понижение последнего OWNER, 409")
     void changeRole_lastOwner_throwsConflict() {
         when(memberRepository.findById(id)).thenReturn(Optional.of(member(WorkspaceRole.OWNER)));
-        when(memberRepository.countByRole(WorkspaceRole.OWNER)).thenReturn(1L);
+        when(memberRepository.findAllByRole(WorkspaceRole.OWNER))
+                .thenReturn(List.of(member(WorkspaceRole.OWNER)));
 
         assertThatThrownBy(() -> service().changeRole(id, WorkspaceRole.ADMIN)).isInstanceOf(ConflictException.class);
         verify(memberRepository, never()).save(any());
@@ -93,7 +95,8 @@ class MemberServiceTest {
     void changeRole_ownerWithOthers_updatesRole() {
         Member m = member(WorkspaceRole.OWNER);
         when(memberRepository.findById(id)).thenReturn(Optional.of(m));
-        when(memberRepository.countByRole(WorkspaceRole.OWNER)).thenReturn(2L);
+        when(memberRepository.findAllByRole(WorkspaceRole.OWNER))
+                .thenReturn(List.of(member(WorkspaceRole.OWNER), member(WorkspaceRole.OWNER)));
         when(memberRepository.save(m)).thenReturn(m);
 
         assertThat(service().changeRole(id, WorkspaceRole.ADMIN).role()).isEqualTo(WorkspaceRole.ADMIN);
@@ -105,7 +108,7 @@ class MemberServiceTest {
         Member m = member(WorkspaceRole.MEMBER);
         when(memberRepository.findById(id)).thenReturn(Optional.of(m));
 
-        service().remove(id);
+        service().remove(id, WorkspaceRole.ADMIN);
 
         verify(memberRepository).delete(m);
     }
@@ -114,9 +117,10 @@ class MemberServiceTest {
     @DisplayName("remove: последний OWNER, 409")
     void remove_lastOwner_throwsConflict() {
         when(memberRepository.findById(id)).thenReturn(Optional.of(member(WorkspaceRole.OWNER)));
-        when(memberRepository.countByRole(WorkspaceRole.OWNER)).thenReturn(1L);
+        when(memberRepository.findAllByRole(WorkspaceRole.OWNER))
+                .thenReturn(List.of(member(WorkspaceRole.OWNER)));
 
-        assertThatThrownBy(() -> service().remove(id)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service().remove(id, WorkspaceRole.OWNER)).isInstanceOf(ConflictException.class);
         verify(memberRepository, never()).delete(any());
     }
 
@@ -125,7 +129,40 @@ class MemberServiceTest {
     void remove_otherTenantMember_throwsNotFound() {
         when(memberRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service().remove(id)).isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service().remove(id, WorkspaceRole.OWNER)).isInstanceOf(NotFoundException.class);
         verify(memberRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("remove: ADMIN удаляет OWNER, 403 и удаления нет")
+    void remove_ownerByAdmin_throwsForbidden() {
+        when(memberRepository.findById(id)).thenReturn(Optional.of(member(WorkspaceRole.OWNER)));
+
+        assertThatThrownBy(() -> service().remove(id, WorkspaceRole.ADMIN))
+                .isInstanceOf(ForbiddenOperationException.class);
+        verify(memberRepository, never()).findAllByRole(any());
+        verify(memberRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("remove: вызывающий без роли удаляет OWNER, 403")
+    void remove_ownerByNoRole_throwsForbidden() {
+        when(memberRepository.findById(id)).thenReturn(Optional.of(member(WorkspaceRole.OWNER)));
+
+        assertThatThrownBy(() -> service().remove(id, null)).isInstanceOf(ForbiddenOperationException.class);
+        verify(memberRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("remove: OWNER удаляет OWNER при нескольких владельцах")
+    void remove_ownerByOwnerWithOthers_deletes() {
+        Member owner = member(WorkspaceRole.OWNER);
+        when(memberRepository.findById(id)).thenReturn(Optional.of(owner));
+        when(memberRepository.findAllByRole(WorkspaceRole.OWNER))
+                .thenReturn(List.of(owner, Member.builder().id(UUID.randomUUID()).userId("u2").role(WorkspaceRole.OWNER).build()));
+
+        service().remove(id, WorkspaceRole.OWNER);
+
+        verify(memberRepository).delete(owner);
     }
 }

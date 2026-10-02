@@ -4,14 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.odysseus.workspace.config.TenantContext;
 import com.odysseus.workspace.entity.Subscription;
+import com.odysseus.workspace.entity.SubscriptionExtensionKey;
 import com.odysseus.workspace.event.SubscriptionChangedEvent;
+import com.odysseus.workspace.exception.ConflictException;
 import com.odysseus.workspace.exception.NotFoundException;
 import com.odysseus.workspace.mapper.SubscriptionMapperImpl;
+import com.odysseus.workspace.repository.SubscriptionExtensionKeyRepository;
 import com.odysseus.workspace.repository.SubscriptionRepository;
 import java.time.Clock;
 import java.time.Duration;
@@ -25,6 +29,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class SubscriptionServiceTest {
@@ -36,10 +41,12 @@ class SubscriptionServiceTest {
     @Mock
     private SubscriptionRepository subscriptionRepository;
     @Mock
+    private SubscriptionExtensionKeyRepository extensionKeyRepository;
+    @Mock
     private OutboxService outboxService;
 
     private SubscriptionService service() {
-        return new SubscriptionService(subscriptionRepository, outboxService, new SubscriptionMapperImpl(),
+        return new SubscriptionService(subscriptionRepository, extensionKeyRepository, outboxService, new SubscriptionMapperImpl(),
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -68,7 +75,7 @@ class SubscriptionServiceTest {
         when(subscriptionRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(subscription));
         when(subscriptionRepository.save(subscription)).thenReturn(subscription);
 
-        var response = TenantContext.callAs(workspaceId, () -> service().extend(30));
+        var response = TenantContext.callAs(workspaceId, () -> service().extend(30, "k1"));
 
         assertThat(response.expiresAt()).isEqualTo(NOW.plus(Duration.ofDays(35)));
         verify(outboxService).save(eq(SubscriptionChangedEvent.TOPIC), eq(workspaceId), eq(workspaceId), any(UUID.class),
@@ -82,7 +89,7 @@ class SubscriptionServiceTest {
         when(subscriptionRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(subscription));
         when(subscriptionRepository.save(subscription)).thenReturn(subscription);
 
-        var response = TenantContext.callAs(workspaceId, () -> service().extend(7));
+        var response = TenantContext.callAs(workspaceId, () -> service().extend(7, "k1"));
 
         assertThat(response.expiresAt()).isEqualTo(NOW.plus(Duration.ofDays(7)));
     }
@@ -92,7 +99,7 @@ class SubscriptionServiceTest {
     void extend_noSubscription_throwsNotFound() {
         when(subscriptionRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service().extend(7)).isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service().extend(7, "k1")).isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -110,5 +117,34 @@ class SubscriptionServiceTest {
         when(subscriptionRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service().getCurrent()).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("extend: повтор Idempotency-Key, 409 и повторного продления нет")
+    void extend_duplicateKey_throwsConflictWithoutExtending() {
+        Subscription subscription = Subscription.builder().expiresAt(NOW.plus(Duration.ofDays(5))).build();
+        when(subscriptionRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(subscription));
+        when(extensionKeyRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("dup"));
+
+        assertThatThrownBy(() -> TenantContext.callAs(workspaceId, () -> service().extend(30, "k1")))
+                .isInstanceOf(ConflictException.class);
+
+        assertThat(subscription.getExpiresAt()).isEqualTo(NOW.plus(Duration.ofDays(5)));
+        verify(subscriptionRepository, never()).save(any());
+        verify(outboxService, never()).save(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("extend: ключ сохраняется до продления")
+    void extend_newKey_storesKey() {
+        Subscription subscription = Subscription.builder().expiresAt(NOW.plus(Duration.ofDays(5))).build();
+        when(subscriptionRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(subscription));
+        when(subscriptionRepository.save(subscription)).thenReturn(subscription);
+
+        TenantContext.callAs(workspaceId, () -> service().extend(30, "k1"));
+
+        ArgumentCaptor<SubscriptionExtensionKey> key = ArgumentCaptor.forClass(SubscriptionExtensionKey.class);
+        verify(extensionKeyRepository).saveAndFlush(key.capture());
+        assertThat(key.getValue().getIdempotencyKey()).isEqualTo("k1");
     }
 }

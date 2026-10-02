@@ -16,6 +16,12 @@ public final class TenantContext {
     /** Служебный идентификатор системного контекста. Не принадлежит ни одному workspace, бизнес-данных под ним нет. */
     public static final UUID SYSTEM = new UUID(0L, 0L);
 
+    /**
+     * Служебный идентификатор сессии Hibernate, открытой вне контекста (например, Spring Data при старте).
+     * Под ним нет данных, а SQL и запись без контекста блокируют {@link TenantStatementGuard} и {@link TenantWriteGuard}.
+     */
+    public static final UUID NO_TENANT = new UUID(0L, 1L);
+
     private static final ThreadLocal<UUID> CURRENT = new ThreadLocal<>();
 
     private TenantContext() {
@@ -33,8 +39,8 @@ public final class TenantContext {
     /** Выполняет действие от имени workspace и возвращает результат. */
     public static <T> T callAs(UUID workspaceId, Supplier<T> action) {
         Objects.requireNonNull(workspaceId, "workspaceId");
-        if (SYSTEM.equals(workspaceId)) {
-            throw new IllegalArgumentException("Системный идентификатор нельзя использовать как workspace");
+        if (SYSTEM.equals(workspaceId) || NO_TENANT.equals(workspaceId)) {
+            throw new IllegalArgumentException("Служебный идентификатор нельзя использовать как workspace");
         }
         return bind(workspaceId, action);
     }

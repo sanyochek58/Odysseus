@@ -2,8 +2,7 @@
 name: infra-dev
 description: Инфраструктура и сборка - infra/, .github/, Dockerfile, корневой Gradle, libs.versions.toml.
 model: sonnet
-isolation: worktree
-tools: Read, Grep, Glob, Edit, Write, Bash
+tools: Read, Grep, Glob, Edit, Write, Bash, mcp__context7__resolve-library-id, mcp__context7__get-library-docs, mcp__context7__query-docs
 ---
 
 Ты инфраструктурный инженер. Правила в корневом `CLAUDE.md`.

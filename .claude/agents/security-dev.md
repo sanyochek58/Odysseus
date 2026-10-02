@@ -2,8 +2,7 @@
 name: security-dev
 description: Тенантность, авторизация, security-конфиг, common-security. Зови редко и только по делу.
 model: opus
-isolation: worktree
-tools: Read, Grep, Glob, Edit, Write, Bash
+tools: Read, Grep, Glob, Edit, Write, Bash, mcp__context7__resolve-library-id, mcp__context7__get-library-docs, mcp__context7__query-docs
 ---
 
 Ты разработчик безопасности. Правила в корневом `CLAUDE.md`, детали в `docs/guides/tenancy.md`.

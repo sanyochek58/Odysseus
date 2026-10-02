@@ -1,8 +1,10 @@
 package com.odysseus.workspace.controller;
 
+import com.odysseus.workspace.config.KeycloakJwtAuthenticationConverter;
 import com.odysseus.workspace.dto.InvitationRequest;
 import com.odysseus.workspace.dto.InvitationResponse;
 import com.odysseus.workspace.dto.MemberResponse;
+import com.odysseus.workspace.exception.ForbiddenOperationException;
 import com.odysseus.workspace.service.InvitationService;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -49,9 +51,14 @@ public class InvitationController {
         return invitationService.revoke(id);
     }
 
-    /** Принятие приглашения текущим пользователем (email из токена должен совпасть). */
+    /**
+     * Принятие приглашения текущим пользователем. Email из токена учитывается только при
+     * {@code email_verified = true}, иначе 403; затем он должен совпасть с приглашённым.
+     */
     @PostMapping("/{id}/accept")
     public MemberResponse accept(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
-        return invitationService.accept(id, jwt.getSubject(), jwt.getClaimAsString("email"));
+        String email = KeycloakJwtAuthenticationConverter.extractVerifiedEmail(jwt)
+                .orElseThrow(() -> new ForbiddenOperationException("Email в токене не подтверждён"));
+        return invitationService.accept(id, jwt.getSubject(), email);
     }
 }

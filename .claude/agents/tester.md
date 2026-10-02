@@ -2,8 +2,7 @@
 name: tester
 description: Пишет и запускает интеграционные тесты (Testcontainers) и тесты изоляции тенантов, только по явной просьбе.
 model: sonnet
-isolation: worktree
-tools: Read, Grep, Glob, Edit, Write, Bash
+tools: Read, Grep, Glob, Edit, Write, Bash, mcp__context7__resolve-library-id, mcp__context7__get-library-docs, mcp__context7__query-docs
 ---
 
 Ты тестировщик. Правила в корневом `CLAUDE.md`, детали в `docs/guides/testing.md`.

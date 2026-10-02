@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-subscription-extension-keys
+      author: backend-dev
+      changes:
+        - createTable:
+            tableName: subscription_extension_key
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: workspace_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: idempotency_key, type: varchar(128), constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+        - createIndex:
+            tableName: subscription_extension_key
+            indexName: ux_subscription_extension_key_ws_key
+            unique: true
+            columns:
+              - column: {name: workspace_id}
+              - column: {name: idempotency_key}
+      rollback:
+        - dropTable:
+            tableName: subscription_extension_key

@@ -1,7 +1,12 @@
 package com.odysseus.workspace.controller;
 
+import com.odysseus.workspace.service.WorkspaceService;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -23,7 +28,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 
+@WebMvcTest(WorkspaceController.class)
 class WorkspaceControllerTest extends ApiTestBase {
+
+    @MockitoBean
+    private WorkspaceService workspaceService;
 
     private static final String BODY = "{\"name\":\"Acme\"}";
 
@@ -32,7 +41,7 @@ class WorkspaceControllerTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("POST /workspaces: владелец создаёт workspace, 201")
+    @DisplayName("POST /workspaces: владелец с подтверждённым email создаёт workspace, email уходит в сервис, 201")
     void create_owner_returns201() throws Exception {
         when(workspaceService.create(any(), eq("user-1"), eq("user@acme.io"))).thenReturn(response());
 
@@ -40,6 +49,8 @@ class WorkspaceControllerTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Acme"));
+
+        verify(workspaceService).create(any(), eq("user-1"), eq("user@acme.io"));
     }
 
     @Test
@@ -54,6 +65,18 @@ class WorkspaceControllerTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("POST /workspaces: email не подтверждён, в сервис уходит null вместо email")
+    void create_emailNotVerified_passesNullEmail() throws Exception {
+        when(workspaceService.create(any(), eq("user-1"), isNull())).thenReturn(response());
+
+        mvc.perform(post("/api/v1/workspaces").with(tokenOf(WORKSPACE_A, false))
+                        .contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isCreated());
+
+        verify(workspaceService).create(any(), eq("user-1"), isNull());
+    }
+
+    @Test
     @DisplayName("POST /workspaces: пустое имя, 400")
     void create_blankName_returns400() throws Exception {
         mvc.perform(post("/api/v1/workspaces").with(token(WORKSPACE_A, "OWNER"))
@@ -64,9 +87,38 @@ class WorkspaceControllerTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("POST /workspaces: роль MEMBER, 403")
-    void create_member_returns403() throws Exception {
-        mvc.perform(post("/api/v1/workspaces").with(token(WORKSPACE_A, "MEMBER"))
+    @DisplayName("POST /workspaces: первый вход без записи Member регистрирует workspace, создатель становится OWNER")
+    void create_noMember_returns201() throws Exception {
+        when(workspaceService.create(any(), eq("user-1"), eq("user@acme.io"))).thenReturn(response());
+
+        mvc.perform(post("/api/v1/workspaces").with(token(WORKSPACE_A))
+                        .contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("PUT /workspaces/{id}: без записи Member ролей нет, 403")
+    void rename_noMember_returns403() throws Exception {
+        mvc.perform(put("/api/v1/workspaces/{id}", WORKSPACE_A).with(token(WORKSPACE_A))
+                        .contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        verifyNoInteractions(workspaceService);
+    }
+
+    @Test
+    @DisplayName("PUT /workspaces/{id}: realm-роль OWNER в токене без записи Member не даёт прав, 403")
+    void rename_realmRoleWithoutMember_returns403() throws Exception {
+        when(memberRolePort.findRole(WORKSPACE_A, "user-1")).thenReturn(java.util.Optional.empty());
+
+        mvc.perform(put("/api/v1/workspaces/{id}", WORKSPACE_A)
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt()
+                                .jwt(j -> j.subject("user-1")
+                                        .claim("realm_access", java.util.Map.of("roles", List.of("OWNER")))
+                                        .claim("organization", java.util.Map.of("acme",
+                                                java.util.Map.of("id", WORKSPACE_A.toString()))))
+                                .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                        "ROLE_OWNER")))
                         .contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isForbidden());
         verifyNoInteractions(workspaceService);
@@ -144,6 +196,24 @@ class WorkspaceControllerTest extends ApiTestBase {
 
         mvc.perform(put("/api/v1/workspaces/{id}", WORKSPACE_A).with(token(WORKSPACE_A, "OWNER"))
                         .contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        verifyNoInteractions(workspaceService);
+    }
+
+    @Test
+    @DisplayName("GET /workspaces: без записи Member, 403 ProblemDetail")
+    void list_noMember_returns403() throws Exception {
+        mvc.perform(get("/api/v1/workspaces").with(token(WORKSPACE_A)))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        verifyNoInteractions(workspaceService);
+    }
+
+    @Test
+    @DisplayName("GET /workspaces/{id}: без записи Member, 403 ProblemDetail")
+    void get_noMember_returns403() throws Exception {
+        mvc.perform(get("/api/v1/workspaces/{id}", WORKSPACE_A).with(token(WORKSPACE_A)))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
         verifyNoInteractions(workspaceService);
