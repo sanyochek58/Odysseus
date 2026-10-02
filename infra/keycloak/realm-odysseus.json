@@ -1,0 +1,32 @@
+{
+  "realm": "odysseus",
+  "enabled": true,
+  "sslRequired": "none",
+  "organizationsEnabled": true,
+  "registrationAllowed": false,
+  "accessTokenLifespan": 900,
+  "roles": {
+    "realm": [
+      { "name": "OWNER", "description": "Владелец workspace" },
+      { "name": "ADMIN", "description": "Администратор workspace" },
+      { "name": "TECH_LEAD", "description": "Технический лид" },
+      { "name": "MANAGER", "description": "Менеджер" },
+      { "name": "MEMBER", "description": "Участник" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "odysseus-dev",
+      "name": "Odysseus dev client (только для локальной разработки)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:*", "http://localhost/*"],
+      "webOrigins": ["+"],
+      "attributes": { "pkce.code.challenge.method": "S256" },
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "basic", "email", "organization"],
+      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
+    }
+  ]
+}

@@ -8,11 +8,19 @@ dependencies {
     implementation libs.spring.boot.starter.webmvc
     implementation libs.spring.boot.starter.data.jpa
     implementation libs.spring.boot.starter.liquibase
+    implementation libs.spring.boot.starter.validation
+    implementation libs.spring.boot.starter.actuator
+    implementation libs.spring.boot.starter.oauth2.resource.server
+    implementation libs.spring.boot.starter.kafka
+    implementation libs.springdoc.openapi.webmvc.ui
+    implementation libs.mapstruct
     runtimeOnly libs.postgresql
 
-    compileOnly libs.lombok
-    annotationProcessor libs.lombok
-
     testImplementation libs.spring.boot.starter.test
+    testImplementation libs.spring.security.test
+    testImplementation libs.spring.kafka.test
+    testImplementation libs.testcontainers.postgresql
+    testImplementation libs.testcontainers.kafka
+    testImplementation libs.testcontainers.junit.jupiter
     testRuntimeOnly libs.junit.platform.launcher
 }

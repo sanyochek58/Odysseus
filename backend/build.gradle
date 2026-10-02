@@ -12,14 +12,70 @@ subprojects {
     }
 
     plugins.withType(JavaPlugin).configureEach {
+        apply plugin: 'jacoco'
+
         java {
             toolchain {
                 languageVersion = JavaLanguageVersion.of(25)
             }
         }
 
-        tasks.withType(Test).configureEach {
-            useJUnitPlatform()
+        jacoco {
+            toolVersion = libs.versions.jacoco.get()
+        }
+
+        dependencies {
+            compileOnly libs.lombok
+            // Порядок процессоров не менять: lombok, lombok-mapstruct-binding, mapstruct-processor
+            annotationProcessor libs.lombok
+            annotationProcessor libs.lombok.mapstruct.binding
+            annotationProcessor libs.mapstruct.processor
+            testCompileOnly libs.lombok
+            testAnnotationProcessor libs.lombok
+        }
+
+        // Юнит-тесты: без интеграционных (тег integration)
+        tasks.named('test', Test) {
+            useJUnitPlatform {
+                excludeTags 'integration'
+            }
+            finalizedBy tasks.named('jacocoTestReport')
+        }
+
+        // Интеграционные тесты (Testcontainers): только тег integration, build их не вызывает
+        tasks.register('integrationTest', Test) {
+            group = 'verification'
+            description = 'Интеграционные тесты (тег integration)'
+            testClassesDirs = sourceSets.test.output.classesDirs
+            classpath = sourceSets.test.runtimeClasspath
+            useJUnitPlatform {
+                includeTags 'integration'
+            }
+            shouldRunAfter tasks.named('test')
+        }
+
+        tasks.named('jacocoTestReport', JacocoReport) {
+            dependsOn tasks.named('test')
+        }
+
+        // Покрытие 80% только на пакет service
+        tasks.named('jacocoTestCoverageVerification', JacocoCoverageVerification) {
+            dependsOn tasks.named('test')
+            violationRules {
+                rule {
+                    element = 'CLASS'
+                    includes = ['*.service.*']
+                    limit {
+                        counter = 'LINE'
+                        value = 'COVEREDRATIO'
+                        minimum = 0.80
+                    }
+                }
+            }
+        }
+
+        tasks.named('check') {
+            dependsOn tasks.named('jacocoTestCoverageVerification')
         }
     }
 }
