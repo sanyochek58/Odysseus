@@ -14,6 +14,30 @@
       { "name": "MEMBER", "description": "Участник" }
     ]
   },
+  "organizations": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "Test Org",
+      "alias": "test-org",
+      "enabled": true,
+      "domains": [{ "name": "test-org.local", "verified": false }],
+      "members": [{ "username": "test-user" }]
+    }
+  ],
+  "users": [
+    {
+      "username": "test-user",
+      "enabled": true,
+      "email": "test-user@test-org.local",
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_TEST_USER_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["OWNER"]
+    }
+  ],
   "clients": [
     {
       "clientId": "odysseus-dev",
@@ -25,8 +49,24 @@
       "redirectUris": ["http://localhost:*", "http://localhost/*"],
       "webOrigins": ["+"],
       "attributes": { "pkce.code.challenge.method": "S256" },
-      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "basic", "email", "organization"],
-      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "basic", "email"],
+      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt", "organization"],
+      "protocolMappers": [
+        {
+          "name": "organization-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-organization-membership-mapper",
+          "config": {
+            "claim.name": "organization",
+            "jsonType.label": "JSON",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "addOrganizationId": "true",
+            "addOrganizationAttributes": "false"
+          }
+        }
+      ]
     }
   ]
 }
