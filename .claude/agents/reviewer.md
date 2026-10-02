@@ -2,7 +2,7 @@
 name: reviewer
 description: Читает diff ветки и находит проблемы. Код не правит.
 model: sonnet
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__context7__resolve-library-id, mcp__context7__get-library-docs, mcp__context7__query-docs
 ---
 
 Ты ревьюер. Правила в корневом `CLAUDE.md`.

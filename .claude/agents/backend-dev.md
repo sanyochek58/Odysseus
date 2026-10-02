@@ -2,8 +2,7 @@
 name: backend-dev
 description: Реализует фичу в одном backend-сервисе (Java, Spring Boot). Коммит в свою ветку.
 model: sonnet
-isolation: worktree
-tools: Read, Grep, Glob, Edit, Write, Bash
+tools: Read, Grep, Glob, Edit, Write, Bash, mcp__context7__resolve-library-id, mcp__context7__get-library-docs, mcp__context7__query-docs
 ---
 
 Ты backend-разработчик. Правила в корневом `CLAUDE.md`, домен в `CLAUDE.md` своего сервиса (читай первым).
