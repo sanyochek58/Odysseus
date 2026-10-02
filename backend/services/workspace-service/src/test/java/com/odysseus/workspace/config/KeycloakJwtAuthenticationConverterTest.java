@@ -44,25 +44,35 @@ class KeycloakJwtAuthenticationConverterTest {
     }
 
     @Test
-    @DisplayName("convert: берёт только известные роли realm и имя из sub")
-    void convert_realmRoles_mapsKnownRolesOnly() {
-        Jwt token = jwt().claim("realm_access", Map.of("roles", List.of("OWNER", "MEMBER", "offline_access", "admin")))
-                .build();
+    @DisplayName("convert: глобальные realm-роли игнорируются, ролей нет, имя из sub")
+    void convert_realmRoles_ignored() {
+        Jwt token = jwt().claim("realm_access", Map.of("roles", List.of("OWNER", "MEMBER", "ADMIN"))).build();
 
         AbstractAuthenticationToken authentication = converter.convert(token);
 
         assertThat(authentication.getName()).isEqualTo("user-1");
         assertThat(authentication.getAuthorities()).extracting(GrantedAuthority::getAuthority)
-                .contains("ROLE_OWNER", "ROLE_MEMBER")
-                .doesNotContain("ROLE_offline_access", "ROLE_admin", "ROLE_ADMIN");
+                .noneMatch(authority -> authority.startsWith("ROLE_"));
     }
 
     @Test
-    @DisplayName("convert: без realm_access ролей нет")
-    void convert_noRealmAccess_noRoles() {
-        AbstractAuthenticationToken authentication = converter.convert(jwt().claim("scope", "openid").build());
+    @DisplayName("extractVerifiedEmail: email_verified = true даёт email")
+    void extractVerifiedEmail_verified_returnsEmail() {
+        Jwt token = jwt().claim("email", "user@acme.io").claim("email_verified", true).build();
 
-        assertThat(authentication.getAuthorities()).extracting(GrantedAuthority::getAuthority)
-                .noneMatch(authority -> authority.startsWith("ROLE_"));
+        assertThat(KeycloakJwtAuthenticationConverter.extractVerifiedEmail(token)).contains("user@acme.io");
+    }
+
+    @Test
+    @DisplayName("extractVerifiedEmail: false, строка \"true\", нет claim или нет email дают пусто")
+    void extractVerifiedEmail_notVerified_returnsEmpty() {
+        List<Jwt> tokens = List.of(
+                jwt().claim("email", "user@acme.io").claim("email_verified", false).build(),
+                jwt().claim("email", "user@acme.io").claim("email_verified", "true").build(),
+                jwt().claim("email", "user@acme.io").build(),
+                jwt().claim("email_verified", true).build(),
+                jwt().claim("email", " ").claim("email_verified", true).build());
+
+        tokens.forEach(token -> assertThat(KeycloakJwtAuthenticationConverter.extractVerifiedEmail(token)).isEmpty());
     }
 }

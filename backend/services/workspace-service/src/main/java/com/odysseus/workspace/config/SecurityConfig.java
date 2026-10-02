@@ -17,7 +17,8 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 
 /**
  * Resource Server: JWT realm {@code odysseus}, issuer из {@code KEYCLOAK_ISSUER_URI} без значения по умолчанию.
- * Всё, кроме health, требует аутентификации. Роли проверяются {@code @PreAuthorize}.
+ * Всё, кроме health, требует аутентификации. Роли проверяются {@code @PreAuthorize};
+ * источник роли это запись Member в БД (см. {@link TenantContextFilter}), не claims токена.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
@@ -25,8 +26,8 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, ProblemDetailResponseWriter problemWriter)
-            throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, ProblemDetailResponseWriter problemWriter,
+            MemberRolePort memberRolePort) throws Exception {
         BearerTokenAuthenticationEntryPoint bearerEntryPoint = new BearerTokenAuthenticationEntryPoint();
         BearerTokenAccessDeniedHandler bearerAccessDenied = new BearerTokenAccessDeniedHandler();
         // Bearer-обработчики ставят статус и WWW-Authenticate, тело дописываем ProblemDetail.
@@ -51,7 +52,7 @@ public class SecurityConfig {
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(accessDenied))
-                .addFilterAfter(new TenantContextFilter(problemWriter), BearerTokenAuthenticationFilter.class);
+                .addFilterAfter(new TenantContextFilter(problemWriter, memberRolePort), BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 }

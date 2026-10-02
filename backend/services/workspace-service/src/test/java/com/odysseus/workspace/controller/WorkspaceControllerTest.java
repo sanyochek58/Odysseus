@@ -64,9 +64,38 @@ class WorkspaceControllerTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("POST /workspaces: роль MEMBER, 403")
-    void create_member_returns403() throws Exception {
-        mvc.perform(post("/api/v1/workspaces").with(token(WORKSPACE_A, "MEMBER"))
+    @DisplayName("POST /workspaces: первый вход без записи Member регистрирует workspace, создатель становится OWNER")
+    void create_noMember_returns201() throws Exception {
+        when(workspaceService.create(any(), eq("user-1"), eq("user@acme.io"))).thenReturn(response());
+
+        mvc.perform(post("/api/v1/workspaces").with(token(WORKSPACE_A))
+                        .contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("PUT /workspaces/{id}: без записи Member ролей нет, 403")
+    void rename_noMember_returns403() throws Exception {
+        mvc.perform(put("/api/v1/workspaces/{id}", WORKSPACE_A).with(token(WORKSPACE_A))
+                        .contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        verifyNoInteractions(workspaceService);
+    }
+
+    @Test
+    @DisplayName("PUT /workspaces/{id}: realm-роль OWNER в токене без записи Member не даёт прав, 403")
+    void rename_realmRoleWithoutMember_returns403() throws Exception {
+        when(memberRolePort.findRole(WORKSPACE_A, "user-1")).thenReturn(java.util.Optional.empty());
+
+        mvc.perform(put("/api/v1/workspaces/{id}", WORKSPACE_A)
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt()
+                                .jwt(j -> j.subject("user-1")
+                                        .claim("realm_access", java.util.Map.of("roles", List.of("OWNER")))
+                                        .claim("organization", java.util.Map.of("acme",
+                                                java.util.Map.of("id", WORKSPACE_A.toString()))))
+                                .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                        "ROLE_OWNER")))
                         .contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isForbidden());
         verifyNoInteractions(workspaceService);

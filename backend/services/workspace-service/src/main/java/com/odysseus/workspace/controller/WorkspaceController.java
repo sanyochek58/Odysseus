@@ -29,11 +29,15 @@ public class WorkspaceController {
 
     private final WorkspaceService workspaceService;
 
-    /** Регистрирует workspace организации из токена. Подписки ещё нет, поэтому блокировка записи снята. */
+    /**
+     * Регистрирует workspace организации из токена. Подписки ещё нет, поэтому блокировка записи снята.
+     * Записи Member до регистрации нет, поэтому роль не требуется: первый пользователь организации,
+     * зарегистрировавший workspace, становится OWNER; повтор для той же организации даёт 409.
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SubscriptionNotRequired
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("isAuthenticated()")
     public WorkspaceResponse create(@Valid @RequestBody WorkspaceRequest request, @AuthenticationPrincipal Jwt jwt) {
         return workspaceService.create(request, jwt.getSubject(), jwt.getClaimAsString("email"));
     }

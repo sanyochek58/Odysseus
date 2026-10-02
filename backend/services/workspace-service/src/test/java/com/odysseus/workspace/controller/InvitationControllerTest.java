@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -110,6 +111,39 @@ class InvitationControllerTest extends ApiTestBase {
                 .thenReturn(new MemberResponse(UUID.randomUUID(), "user-1", "user@acme.io", WorkspaceRole.MEMBER, Instant.now()));
 
         mvc.perform(post("/api/v1/invitations/{id}/accept", id).with(token(WORKSPACE_A, "MEMBER")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("POST /invitations/{id}/accept: email не подтверждён, 403 ProblemDetail, сервис не вызывается")
+    void accept_emailNotVerified_returns403() throws Exception {
+        mvc.perform(post("/api/v1/invitations/{id}/accept", id).with(tokenOf(WORKSPACE_A, false)))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(403));
+        verifyNoInteractions(invitationService);
+    }
+
+    @Test
+    @DisplayName("POST /invitations/{id}/accept: без claim email_verified, 403")
+    void accept_emailVerifiedMissing_returns403() throws Exception {
+        mvc.perform(post("/api/v1/invitations/{id}/accept", id)
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt()
+                                .jwt(j -> j.subject("user-1")
+                                        .claim("email", "user@acme.io")
+                                        .claim("organization", java.util.Map.of("acme",
+                                                java.util.Map.of("id", WORKSPACE_A.toString()))))))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(invitationService);
+    }
+
+    @Test
+    @DisplayName("POST /invitations/{id}/accept: пользователь без записи Member с подтверждённым email принимает, 200")
+    void accept_noMemberVerifiedEmail_returns200() throws Exception {
+        when(invitationService.accept(id, "user-1", "user@acme.io"))
+                .thenReturn(new MemberResponse(UUID.randomUUID(), "user-1", "user@acme.io", WorkspaceRole.MEMBER, Instant.now()));
+
+        mvc.perform(post("/api/v1/invitations/{id}/accept", id).with(token(WORKSPACE_A)))
                 .andExpect(status().isOk());
     }
 

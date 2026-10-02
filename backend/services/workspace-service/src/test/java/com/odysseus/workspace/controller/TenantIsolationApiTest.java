@@ -2,17 +2,24 @@ package com.odysseus.workspace.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.odysseus.workspace.config.TenantContext;
+import com.odysseus.workspace.config.WorkspaceRole;
 import com.odysseus.workspace.dto.WorkspaceResponse;
 import com.odysseus.workspace.exception.NotFoundException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,6 +59,21 @@ class TenantIsolationApiTest extends ApiTestBase {
                 .andExpect(status().isCreated());
 
         assertThat(seenTenants).containsExactly(WORKSPACE_A);
+    }
+
+    @Test
+    @DisplayName("Роль: OWNER в A и MEMBER в B, с токеном B операция OWNER даёт 403")
+    void changeRole_ownerInAMemberInB_tokenB_returns403() throws Exception {
+        when(memberRolePort.findRole(WORKSPACE_A, USER_ID)).thenReturn(Optional.of(WorkspaceRole.OWNER));
+        when(memberRolePort.findRole(WORKSPACE_B, USER_ID)).thenReturn(Optional.of(WorkspaceRole.MEMBER));
+
+        mvc.perform(put("/api/v1/members/{id}/role", UUID.randomUUID()).with(tokenOf(WORKSPACE_B, true))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"ADMIN\"}"))
+                .andExpect(status().isForbidden());
+
+        verify(memberRolePort).findRole(WORKSPACE_B, USER_ID);
+        verify(memberRolePort, never()).findRole(eq(WORKSPACE_A), any());
+        verifyNoInteractions(memberService);
     }
 
     @Test

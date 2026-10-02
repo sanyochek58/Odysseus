@@ -1,35 +1,41 @@
 package com.odysseus.workspace.config;
 
-import java.util.Collection;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 /**
- * Превращает проверенный JWT Keycloak в аутентификацию: роли из {@code realm_access.roles}
- * (только известные {@link WorkspaceRole}), workspace из claim организации.
+ * Превращает проверенный JWT Keycloak в аутентификацию без ролей: Keycloak даёт только личность (sub)
+ * и организацию. Глобальные {@code realm_access.roles} игнорируются. Роль workspace добавляет
+ * {@link TenantContextFilter} из записи Member в БД сервиса.
  */
 public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
     /** Claim Keycloak Organizations. Нужен маппер с «Add organization id»: {@code {"alias": {"id": "uuid"}}}. */
     static final String ORGANIZATION_CLAIM = "organization";
 
-    private static final String REALM_ACCESS_CLAIM = "realm_access";
-    private static final String ROLES_KEY = "roles";
     private static final String ORGANIZATION_ID_KEY = "id";
+    private static final String EMAIL_CLAIM = "email";
+    private static final String EMAIL_VERIFIED_CLAIM = "email_verified";
+
+    /** Email из токена, только если {@code email_verified} строго boolean true. Иначе пусто. */
+    public static Optional<String> extractVerifiedEmail(Jwt jwt) {
+        if (!Boolean.TRUE.equals(jwt.getClaims().get(EMAIL_VERIFIED_CLAIM))
+                || !(jwt.getClaims().get(EMAIL_CLAIM) instanceof String email)
+                || email.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(email);
+    }
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
-        return new JwtAuthenticationToken(jwt, extractAuthorities(jwt), jwt.getSubject());
+        return new JwtAuthenticationToken(jwt, List.of(), jwt.getSubject());
     }
 
     /**
@@ -50,21 +56,5 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
         } catch (IllegalArgumentException e) {
             return Optional.empty();
         }
-    }
-
-    static Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
-        if (!(jwt.getClaims().get(REALM_ACCESS_CLAIM) instanceof Map<?, ?> realmAccess)
-                || !(realmAccess.get(ROLES_KEY) instanceof Collection<?> roles)) {
-            return List.of();
-        }
-        Set<WorkspaceRole> known = EnumSet.noneOf(WorkspaceRole.class);
-        for (WorkspaceRole candidate : WorkspaceRole.values()) {
-            if (roles.contains(candidate.name())) {
-                known.add(candidate);
-            }
-        }
-        return known.stream()
-                .<GrantedAuthority>map(role -> new SimpleGrantedAuthority(role.authority()))
-                .toList();
     }
 }

@@ -13,11 +13,11 @@
 Все тенантные сущности с `@TenantId workspaceId`; `Outbox` без него (читается планировщиком в системном контексте).
 
 ## API (`/api/v1`, JWT обязателен, ошибки ProblemDetail)
-- `POST /workspaces` (OWNER, @SubscriptionNotRequired): регистрирует workspace организации из токена; 201, 409 если уже есть. Создаёт владельца и пробную подписку.
+- `POST /workspaces` (любой аутентифицированный с токеном организации, @SubscriptionNotRequired): регистрирует workspace организации из токена; 201, 409 если уже есть. Создатель становится OWNER (запись Member), создаётся пробная подписка.
 - `GET /workspaces`, `GET /workspaces/{id}` (любая роль), `PUT /workspaces/{id}` (OWNER, ADMIN). `{id}` лишь сверяется с тенантом, чужой это 404.
 - `GET /members`, `GET /members/{id}`; `PUT /members/{id}/role` (OWNER); `DELETE /members/{id}` (OWNER, ADMIN). Последнего OWNER понизить или удалить нельзя: 409.
 - `POST /invitations`, `GET /invitations`, `DELETE /invitations/{id}` (отзыв) (OWNER, ADMIN). Дубликат или уже участник: 409.
-- `POST /invitations/{id}/accept` (любой пользователь с токеном этой организации): email токена должен совпасть с приглашённым (иначе 403), срок и статус (иначе 409). Создаёт Member.
+- `POST /invitations/{id}/accept` (любой пользователь с токеном этой организации): нужен `email_verified = true` (иначе 403), email токена должен совпасть с приглашённым (иначе 403), срок и статус (иначе 409). Создаёт Member.
 - `GET /subscriptions/current`; `POST /subscriptions/current/extensions` `{days: 1..366}` (OWNER, @SubscriptionNotRequired): продление от max(now, expiresAt), без платежей. Заголовок `Idempotency-Key` обязателен (нет или пусто: 400, до 128 символов); ключ в `subscription_extension_key`, уникален (workspace_id, idempotency_key); повтор: 409, второго продления нет (гонка решается индексом).
 - Списки с `Pageable`; ответ `{content: [...], page: {size, number, totalElements, totalPages}}` (`PageSerializationMode.VIA_DTO`). Чужой ресурс это 404, не 403.
 
@@ -28,5 +28,6 @@
 
 ## Допущения
 - Организация Keycloak создаётся вне сервиса; `POST /workspaces` регистрирует её как workspace. Вступление пользователя в организацию Keycloak выдаётся отдельно, приглашение лишь фиксирует роль.
-- Роль в `Member` информационная, права проверяются по realm-ролям токена.
+- Роль берётся из `Member.role` для (workspace из JWT, sub): `TenantContextFilter` через `MemberRolePort`, одна выборка на запрос. `realm_access.roles` игнорируются. Нет записи Member: ролей нет, защищённые операции 403.
+- Первый OWNER: тот пользователь организации, кто первым вызвал `POST /workspaces`.
 - Веб-тесты на spring-test (MockMvc + springSecurity), так как `spring-boot-starter-webmvc-test` в каталоге нет.
