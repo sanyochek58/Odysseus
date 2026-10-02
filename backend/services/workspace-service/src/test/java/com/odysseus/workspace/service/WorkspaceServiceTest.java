@@ -63,6 +63,20 @@ class WorkspaceServiceTest {
     }
 
     @Test
+    @DisplayName("create: email владельца не подтверждён (null), Member сохраняется без email")
+    void create_nullEmail_savesMemberWithoutEmail() {
+        when(workspaceRepository.existsById(workspaceId)).thenReturn(false);
+        when(workspaceRepository.save(any(Workspace.class))).thenAnswer(i -> i.getArgument(0));
+
+        TenantContext.callAs(workspaceId, () -> service().create(new WorkspaceRequest("Acme"), "user-1", null));
+
+        ArgumentCaptor<Member> member = ArgumentCaptor.forClass(Member.class);
+        verify(memberRepository).save(member.capture());
+        assertThat(member.getValue().getEmail()).isNull();
+        assertThat(member.getValue().getRole()).isEqualTo(WorkspaceRole.OWNER);
+    }
+
+    @Test
     @DisplayName("create: workspace уже есть, конфликт")
     void create_alreadyExists_throwsConflict() {
         when(workspaceRepository.existsById(workspaceId)).thenReturn(true);
@@ -83,11 +97,10 @@ class WorkspaceServiceTest {
     @Test
     @DisplayName("get: чужой workspace неотличим от несуществующего, 404")
     void get_otherTenantWorkspace_throwsNotFound() {
-        // репозиторий с @TenantId не видит чужую строку
-        when(workspaceRepository.findById(otherWorkspaceId)).thenReturn(Optional.empty());
-
         assertThatThrownBy(() -> TenantContext.runAs(workspaceId, () -> service().get(otherWorkspaceId)))
                 .isInstanceOf(NotFoundException.class);
+        // id сверяется с тенантом до обращения к БД
+        verify(workspaceRepository, never()).findById(any());
     }
 
     @Test
@@ -97,7 +110,8 @@ class WorkspaceServiceTest {
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
         when(workspaceRepository.save(workspace)).thenReturn(workspace);
 
-        WorkspaceResponse response = service().rename(workspaceId, new WorkspaceRequest(" New "));
+        WorkspaceResponse response = TenantContext.callAs(workspaceId,
+                () -> service().rename(workspaceId, new WorkspaceRequest(" New ")));
 
         assertThat(response.name()).isEqualTo("New");
     }
@@ -105,10 +119,10 @@ class WorkspaceServiceTest {
     @Test
     @DisplayName("rename: чужой workspace, 404 и ничего не сохраняется")
     void rename_otherTenantWorkspace_throwsNotFound() {
-        when(workspaceRepository.findById(otherWorkspaceId)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> service().rename(otherWorkspaceId, new WorkspaceRequest("X")))
+        assertThatThrownBy(() -> TenantContext.runAs(workspaceId,
+                () -> service().rename(otherWorkspaceId, new WorkspaceRequest("X"))))
                 .isInstanceOf(NotFoundException.class);
+        verify(workspaceRepository, never()).findById(any());
         verify(workspaceRepository, never()).save(any());
     }
 }

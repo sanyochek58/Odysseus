@@ -68,7 +68,11 @@ public class WorkspaceService {
         return workspaceMapper.toResponse(workspaceRepository.save(workspace));
     }
 
+    /** Чужой id неотличим от несуществующего: сверка с тенантом явно, не только через @TenantId. */
     private Workspace find(UUID id) {
+        if (!TenantContext.requireWorkspaceId().equals(id)) {
+            throw new NotFoundException("Workspace не найден");
+        }
         return workspaceRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Workspace не найден"));
     }

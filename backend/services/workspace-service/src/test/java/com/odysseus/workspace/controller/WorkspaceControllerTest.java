@@ -5,6 +5,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -39,7 +41,7 @@ class WorkspaceControllerTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("POST /workspaces: владелец создаёт workspace, 201")
+    @DisplayName("POST /workspaces: владелец с подтверждённым email создаёт workspace, email уходит в сервис, 201")
     void create_owner_returns201() throws Exception {
         when(workspaceService.create(any(), eq("user-1"), eq("user@acme.io"))).thenReturn(response());
 
@@ -47,6 +49,8 @@ class WorkspaceControllerTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Acme"));
+
+        verify(workspaceService).create(any(), eq("user-1"), eq("user@acme.io"));
     }
 
     @Test
@@ -58,6 +62,18 @@ class WorkspaceControllerTest extends ApiTestBase {
         mvc.perform(post("/api/v1/workspaces").with(token(WORKSPACE_A, "OWNER"))
                         .contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("POST /workspaces: email не подтверждён, в сервис уходит null вместо email")
+    void create_emailNotVerified_passesNullEmail() throws Exception {
+        when(workspaceService.create(any(), eq("user-1"), isNull())).thenReturn(response());
+
+        mvc.perform(post("/api/v1/workspaces").with(tokenOf(WORKSPACE_A, false))
+                        .contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isCreated());
+
+        verify(workspaceService).create(any(), eq("user-1"), isNull());
     }
 
     @Test

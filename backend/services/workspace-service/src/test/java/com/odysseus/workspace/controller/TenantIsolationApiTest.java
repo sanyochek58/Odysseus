@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.odysseus.workspace.config.TenantContext;
@@ -88,21 +89,39 @@ class TenantIsolationApiTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("Подписка проверяется по workspace из токена, а не из запроса")
-    void write_guardUsesTokenTenant() throws Exception {
+    @DisplayName("PUT /workspaces/{id}: OWNER A переименовывает workspace B, 404 и сервис работает в контексте A")
+    void rename_otherWorkspace_returns404InTenantA() throws Exception {
+        List<UUID> seenTenants = new ArrayList<>();
+        when(workspaceService.rename(eq(WORKSPACE_B), any())).thenAnswer(invocation -> {
+            seenTenants.add(TenantContext.requireWorkspaceId());
+            throw new NotFoundException("Workspace не найден");
+        });
+
+        mvc.perform(put("/api/v1/workspaces/{id}", WORKSPACE_B).with(token(WORKSPACE_A, "OWNER"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Acme\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+
+        assertThat(seenTenants).containsExactly(WORKSPACE_A);
+    }
+
+    @Test
+    @DisplayName("PUT /workspaces/{id}: свой id, 200; подписка проверяется по workspace из токена")
+    void rename_ownWorkspace_returns200AndGuardUsesTokenTenant() throws Exception {
         List<UUID> checked = new ArrayList<>();
         when(subscriptionExpiryPort.findExpiresAt(any())).thenAnswer(invocation -> {
             checked.add(invocation.getArgument(0));
-            return java.util.Optional.of(Instant.now().plusSeconds(60));
+            return Optional.of(Instant.now().plusSeconds(60));
         });
-        when(workspaceService.rename(any(), any()))
+        when(workspaceService.rename(eq(WORKSPACE_A), any()))
                 .thenReturn(new WorkspaceResponse(WORKSPACE_A, "Acme", Instant.now(), Instant.now()));
 
         // POST /workspaces помечен @SubscriptionNotRequired, поэтому берём защищённую запись PUT
-        mvc.perform(put("/api/v1/workspaces/{id}", WORKSPACE_B).with(token(WORKSPACE_A, "OWNER"))
+        mvc.perform(put("/api/v1/workspaces/{id}", WORKSPACE_A).with(token(WORKSPACE_A, "OWNER"))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Acme\"}"))
                 .andExpect(status().isOk());
 
         assertThat(checked).containsExactly(WORKSPACE_A);
+        verify(workspaceService).rename(eq(WORKSPACE_A), any());
     }
 }

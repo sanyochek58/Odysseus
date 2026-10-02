@@ -1,5 +1,6 @@
 package com.odysseus.workspace.controller;
 
+import com.odysseus.workspace.config.KeycloakJwtAuthenticationConverter;
 import com.odysseus.workspace.config.RequiresMembership;
 import com.odysseus.workspace.config.SubscriptionNotRequired;
 import com.odysseus.workspace.dto.WorkspaceRequest;
@@ -34,13 +35,14 @@ public class WorkspaceController {
      * Регистрирует workspace организации из токена. Подписки ещё нет, поэтому блокировка записи снята.
      * Записи Member до регистрации нет, поэтому роль не требуется: первый пользователь организации,
      * зарегистрировавший workspace, становится OWNER; повтор для той же организации даёт 409.
+     * Email владельца сохраняется только подтверждённый (email_verified = true), иначе null.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SubscriptionNotRequired
     @PreAuthorize("isAuthenticated()")
     public WorkspaceResponse create(@Valid @RequestBody WorkspaceRequest request, @AuthenticationPrincipal Jwt jwt) {
-        return workspaceService.create(request, jwt.getSubject(), jwt.getClaimAsString("email"));
+        return workspaceService.create(request, jwt.getSubject(), KeycloakJwtAuthenticationConverter.extractVerifiedEmail(jwt).orElse(null));
     }
 
     @GetMapping
