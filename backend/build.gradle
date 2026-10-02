@@ -11,7 +11,7 @@ subprojects {
         mavenCentral()
     }
 
-    plugins.withType(JavaPlugin).configureEach {
+    pluginManager.withPlugin('java') {
         apply plugin: 'jacoco'
 
         java {
