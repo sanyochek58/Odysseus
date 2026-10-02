@@ -62,6 +62,7 @@ public abstract class IntegrationTestBase {
 
     protected static RequestPostProcessor token(UUID workspaceId, String userId, String email, boolean emailVerified) {
         return jwt().jwt(j -> j.subject(userId)
+                .claim("aud", java.util.List.of("odysseus-api"))
                 .claim("email", email)
                 .claim("email_verified", emailVerified)
                 .claim("organization", Map.of("acme", Map.of("id", workspaceId.toString()))));
@@ -69,7 +70,7 @@ public abstract class IntegrationTestBase {
 
     /** Токен без claim организации. */
     protected static RequestPostProcessor tokenWithoutOrganization(String userId) {
-        return jwt().jwt(j -> j.subject(userId).claim("email", userId + "@acme.io").claim("email_verified", true));
+        return jwt().jwt(j -> j.subject(userId).claim("aud", java.util.List.of("odysseus-api")).claim("email", userId + "@acme.io").claim("email_verified", true));
     }
 
     /** Добавляет участника напрямую в БД (JDBC, мимо Hibernate), чтобы подготовить роли без API. */

@@ -136,6 +136,17 @@ class WorkspaceApiIT extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("DELETE /members/{id}: ADMIN удаляет OWNER, 403; OWNER остаётся")
+    void deleteMember_adminDeletesOwner_returns403() throws Exception {
+        insertMember(a, "admin-a", "ADMIN");
+        mvc.perform(delete("/api/v1/members/{id}", memberIdOf(a, ownerA)).with(token(a, "admin-a")))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM member WHERE workspace_id = ? AND user_id = ?",
+                Integer.class, a, ownerA)).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("без токена: 401")
     void anyEndpoint_withoutToken_returns401() throws Exception {
         mvc.perform(get("/api/v1/members")).andExpect(status().isUnauthorized());
