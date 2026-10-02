@@ -1,5 +1,8 @@
 package com.odysseus.workspace.controller;
 
+import com.odysseus.workspace.service.MemberService;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -24,7 +27,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 
+@WebMvcTest(MemberController.class)
 class MemberControllerTest extends ApiTestBase {
+
+    @MockitoBean
+    private MemberService memberService;
 
     private final UUID id = UUID.randomUUID();
 

@@ -1,5 +1,9 @@
 package com.odysseus.workspace.controller;
 
+import com.odysseus.workspace.service.WorkspaceService;
+import com.odysseus.workspace.service.MemberService;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -26,7 +30,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
 /** Изоляция тенантов на веб-уровне: тенант берётся только из токена. Изоляцию на уровне БД проверяют интеграционные тесты. */
+@WebMvcTest({WorkspaceController.class, MemberController.class})
 class TenantIsolationApiTest extends ApiTestBase {
+
+    @MockitoBean
+    private WorkspaceService workspaceService;
+
+    @MockitoBean
+    private MemberService memberService;
 
     @Test
     @DisplayName("GET /workspaces/{id}: пользователь A запрашивает workspace B, 404 и сервис работает в контексте A")
@@ -84,12 +95,13 @@ class TenantIsolationApiTest extends ApiTestBase {
             checked.add(invocation.getArgument(0));
             return java.util.Optional.of(Instant.now().plusSeconds(60));
         });
-        when(workspaceService.create(any(), any(), any()))
+        when(workspaceService.rename(any(), any()))
                 .thenReturn(new WorkspaceResponse(WORKSPACE_A, "Acme", Instant.now(), Instant.now()));
 
-        mvc.perform(post("/api/v1/workspaces").with(token(WORKSPACE_A, "OWNER"))
+        // POST /workspaces помечен @SubscriptionNotRequired, поэтому берём защищённую запись PUT
+        mvc.perform(put("/api/v1/workspaces/{id}", WORKSPACE_B).with(token(WORKSPACE_A, "OWNER"))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Acme\"}"))
-                .andExpect(status().isCreated());
+                .andExpect(status().isOk());
 
         assertThat(checked).containsExactly(WORKSPACE_A);
     }

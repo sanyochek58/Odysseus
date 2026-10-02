@@ -1,5 +1,8 @@
 package com.odysseus.workspace.controller;
 
+import com.odysseus.workspace.service.WorkspaceService;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -23,7 +26,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 
+@WebMvcTest(WorkspaceController.class)
 class WorkspaceControllerTest extends ApiTestBase {
+
+    @MockitoBean
+    private WorkspaceService workspaceService;
 
     private static final String BODY = "{\"name\":\"Acme\"}";
 

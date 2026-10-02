@@ -1,5 +1,8 @@
 package com.odysseus.workspace.controller;
 
+import com.odysseus.workspace.service.SubscriptionService;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -18,7 +21,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
+@WebMvcTest(SubscriptionController.class)
 class SubscriptionControllerTest extends ApiTestBase {
+
+    @MockitoBean
+    private SubscriptionService subscriptionService;
 
     private static final String KEY = "Idempotency-Key";
     private static final String URL = "/api/v1/subscriptions/current/extensions";

@@ -30,4 +30,4 @@
 - Организация Keycloak создаётся вне сервиса; `POST /workspaces` регистрирует её как workspace. Вступление пользователя в организацию Keycloak выдаётся отдельно, приглашение лишь фиксирует роль.
 - Роль берётся из `Member.role` для (workspace из JWT, sub): `TenantContextFilter` через `MemberRolePort`, одна выборка на запрос. `realm_access.roles` игнорируются. Нет записи Member: ролей нет, защищённые операции 403.
 - Первый OWNER: тот пользователь организации, кто первым вызвал `POST /workspaces`.
-- Веб-тесты на spring-test (MockMvc + springSecurity), так как `spring-boot-starter-webmvc-test` в каталоге нет.
+- Веб-тесты контроллеров: `@WebMvcTest(<Controller>.class)` + `@Import` конфигов (`ApiTestBase`), сервисы `@MockitoBean`, JWT через `jwt()`.

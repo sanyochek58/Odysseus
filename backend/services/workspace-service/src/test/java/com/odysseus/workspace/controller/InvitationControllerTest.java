@@ -1,5 +1,8 @@
 package com.odysseus.workspace.controller;
 
+import com.odysseus.workspace.service.InvitationService;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -26,7 +29,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 
+@WebMvcTest(InvitationController.class)
 class InvitationControllerTest extends ApiTestBase {
+
+    @MockitoBean
+    private InvitationService invitationService;
 
     private static final String BODY = "{\"email\":\"new@acme.io\",\"role\":\"MEMBER\"}";
 
