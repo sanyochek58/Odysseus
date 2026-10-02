@@ -82,7 +82,8 @@ class MemberServiceTest {
     @DisplayName("changeRole: понижение последнего OWNER, 409")
     void changeRole_lastOwner_throwsConflict() {
         when(memberRepository.findById(id)).thenReturn(Optional.of(member(WorkspaceRole.OWNER)));
-        when(memberRepository.countByRole(WorkspaceRole.OWNER)).thenReturn(1L);
+        when(memberRepository.findAllByRole(WorkspaceRole.OWNER))
+                .thenReturn(List.of(member(WorkspaceRole.OWNER)));
 
         assertThatThrownBy(() -> service().changeRole(id, WorkspaceRole.ADMIN)).isInstanceOf(ConflictException.class);
         verify(memberRepository, never()).save(any());
@@ -93,7 +94,8 @@ class MemberServiceTest {
     void changeRole_ownerWithOthers_updatesRole() {
         Member m = member(WorkspaceRole.OWNER);
         when(memberRepository.findById(id)).thenReturn(Optional.of(m));
-        when(memberRepository.countByRole(WorkspaceRole.OWNER)).thenReturn(2L);
+        when(memberRepository.findAllByRole(WorkspaceRole.OWNER))
+                .thenReturn(List.of(member(WorkspaceRole.OWNER), member(WorkspaceRole.OWNER)));
         when(memberRepository.save(m)).thenReturn(m);
 
         assertThat(service().changeRole(id, WorkspaceRole.ADMIN).role()).isEqualTo(WorkspaceRole.ADMIN);
@@ -114,7 +116,8 @@ class MemberServiceTest {
     @DisplayName("remove: последний OWNER, 409")
     void remove_lastOwner_throwsConflict() {
         when(memberRepository.findById(id)).thenReturn(Optional.of(member(WorkspaceRole.OWNER)));
-        when(memberRepository.countByRole(WorkspaceRole.OWNER)).thenReturn(1L);
+        when(memberRepository.findAllByRole(WorkspaceRole.OWNER))
+                .thenReturn(List.of(member(WorkspaceRole.OWNER)));
 
         assertThatThrownBy(() -> service().remove(id)).isInstanceOf(ConflictException.class);
         verify(memberRepository, never()).delete(any());

@@ -51,8 +51,9 @@ public class MemberService {
         memberRepository.delete(member);
     }
 
+    /** Читает владельцев с PESSIMISTIC_WRITE: параллельные понижения и удаления идут по очереди. */
     private void ensureNotLastOwner() {
-        if (memberRepository.countByRole(WorkspaceRole.OWNER) <= 1) {
+        if (memberRepository.findAllByRole(WorkspaceRole.OWNER).size() <= 1) {
             throw new ConflictException("Нельзя лишить workspace последнего владельца");
         }
     }

@@ -13,10 +13,11 @@ public class SubscriptionGuardWebConfig implements WebMvcConfigurer {
 
     private final SubscriptionExpiryPort subscriptionExpiryPort;
     private final ProblemDetailResponseWriter problemWriter;
+    private final Clock clock;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(
-                new SubscriptionWriteGuardInterceptor(subscriptionExpiryPort, problemWriter, Clock.systemUTC()));
+                new SubscriptionWriteGuardInterceptor(subscriptionExpiryPort, problemWriter, clock));
     }
 }

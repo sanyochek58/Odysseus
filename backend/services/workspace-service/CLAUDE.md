@@ -5,7 +5,7 @@
 
 ## Модель
 - `Workspace`: id равен workspaceId из JWT (claim organization), name.
-- `Member`: userId (sub), email, role (OWNER, ADMIN, TECH_LEAD, MANAGER, MEMBER). Уникален (workspace_id, user_id). Всегда остаётся хотя бы один OWNER.
+- `Member`: userId (sub), email, role (OWNER, ADMIN, TECH_LEAD, MANAGER, MEMBER). Уникален (workspace_id, user_id). Всегда остаётся хотя бы один OWNER (проверка под PESSIMISTIC_WRITE на строках OWNER).
 - `Invitation`: email (lower-case), role (не OWNER), status PENDING/ACCEPTED/REVOKED, срок 7 дней. Один PENDING на email.
 - `Subscription`: одна на workspace, expiresAt. Пробный срок 30 дней создаётся вместе с workspace.
 - `outbox`, `processed_events`: по `docs/guides/outbox.md`, реализованы внутри сервиса (в `libs/common-events` пусто).
@@ -18,8 +18,8 @@
 - `GET /members`, `GET /members/{id}`; `PUT /members/{id}/role` (OWNER); `DELETE /members/{id}` (OWNER, ADMIN). Последнего OWNER понизить или удалить нельзя: 409.
 - `POST /invitations`, `GET /invitations`, `DELETE /invitations/{id}` (отзыв) (OWNER, ADMIN). Дубликат или уже участник: 409.
 - `POST /invitations/{id}/accept` (любой пользователь с токеном этой организации): email токена должен совпасть с приглашённым (иначе 403), срок и статус (иначе 409). Создаёт Member.
-- `GET /subscriptions/current`; `POST /subscriptions/current/extensions` `{days: 1..366}` (OWNER, @SubscriptionNotRequired): продление от max(now, expiresAt), без платежей.
-- Списки с `Pageable`. Чужой ресурс это 404, не 403.
+- `GET /subscriptions/current`; `POST /subscriptions/current/extensions` `{days: 1..366}` (OWNER, @SubscriptionNotRequired): продление от max(now, expiresAt), без платежей. Заголовок `Idempotency-Key` обязателен (нет или пусто: 400, до 128 символов); ключ в `subscription_extension_key`, уникален (workspace_id, idempotency_key); повтор: 409, второго продления нет (гонка решается индексом).
+- Списки с `Pageable`; ответ `{content: [...], page: {size, number, totalElements, totalPages}}` (`PageSerializationMode.VIA_DTO`). Чужой ресурс это 404, не 403.
 
 ## События (Kafka через outbox)
 - `workspace.subscription.changed` (key = workspaceId): `SubscriptionChangedEvent(eventId, occurredAt, workspaceId, version=1, expiresAt)`, пакет `event`. Публикуется при создании workspace и продлении. Потребители держат копию `workspace_subscription(workspace_id, expires_at)` (ADR-001).

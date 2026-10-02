@@ -82,7 +82,7 @@ abstract class ApiTestBase {
     }
 
     @Configuration
-    @EnableSpringDataWebSupport
+    @EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)
     @org.springframework.web.servlet.config.annotation.EnableWebMvc
     @Import({SecurityConfig.class, ProblemDetailResponseWriter.class, SubscriptionGuardWebConfig.class,
             GlobalExceptionHandler.class, WorkspaceController.class, MemberController.class,
@@ -92,6 +92,11 @@ abstract class ApiTestBase {
         @Bean
         JsonMapper jsonMapper() {
             return JsonMapper.builder().build();
+        }
+
+        @Bean
+        java.time.Clock clock() {
+            return java.time.Clock.systemUTC();
         }
 
         @Bean

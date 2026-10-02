@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.odysseus.workspace.dto.SubscriptionResponse;
+import com.odysseus.workspace.exception.ConflictException;
 import com.odysseus.workspace.exception.NotFoundException;
 import java.time.Instant;
 import java.util.Optional;
@@ -18,6 +19,7 @@ import org.springframework.http.MediaType;
 
 class SubscriptionControllerTest extends ApiTestBase {
 
+    private static final String KEY = "Idempotency-Key";
     private static final String URL = "/api/v1/subscriptions/current/extensions";
 
     private final SubscriptionResponse subscription =
@@ -45,10 +47,10 @@ class SubscriptionControllerTest extends ApiTestBase {
     @Test
     @DisplayName("POST extensions: OWNER продлевает")
     void extend_owner_returns200() throws Exception {
-        when(subscriptionService.extend(30)).thenReturn(subscription);
+        when(subscriptionService.extend(30, "key-1")).thenReturn(subscription);
 
-        mvc.perform(post(URL).with(token(WORKSPACE_A, "OWNER")).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"days\":30}"))
+        mvc.perform(post(URL).with(token(WORKSPACE_A, "OWNER")).header(KEY, "key-1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"days\":30}"))
                 .andExpect(status().isOk());
     }
 
@@ -56,18 +58,18 @@ class SubscriptionControllerTest extends ApiTestBase {
     @DisplayName("POST extensions: продление работает при истёкшей подписке")
     void extend_expiredSubscription_notBlockedByGuard() throws Exception {
         when(subscriptionExpiryPort.findExpiresAt(any())).thenReturn(Optional.of(Instant.now().minusSeconds(60)));
-        when(subscriptionService.extend(30)).thenReturn(subscription);
+        when(subscriptionService.extend(30, "key-1")).thenReturn(subscription);
 
-        mvc.perform(post(URL).with(token(WORKSPACE_A, "OWNER")).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"days\":30}"))
+        mvc.perform(post(URL).with(token(WORKSPACE_A, "OWNER")).header(KEY, "key-1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"days\":30}"))
                 .andExpect(status().isOk());
     }
 
     @Test
     @DisplayName("POST extensions: days вне диапазона, 400")
     void extend_daysOutOfRange_returns400() throws Exception {
-        mvc.perform(post(URL).with(token(WORKSPACE_A, "OWNER")).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"days\":1000}"))
+        mvc.perform(post(URL).with(token(WORKSPACE_A, "OWNER")).header(KEY, "key-1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"days\":1000}"))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(subscriptionService);
     }
@@ -75,8 +77,8 @@ class SubscriptionControllerTest extends ApiTestBase {
     @Test
     @DisplayName("POST extensions: ADMIN, 403")
     void extend_admin_returns403() throws Exception {
-        mvc.perform(post(URL).with(token(WORKSPACE_A, "ADMIN")).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"days\":30}"))
+        mvc.perform(post(URL).with(token(WORKSPACE_A, "ADMIN")).header(KEY, "key-1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"days\":30}"))
                 .andExpect(status().isForbidden());
         verifyNoInteractions(subscriptionService);
     }
@@ -84,10 +86,38 @@ class SubscriptionControllerTest extends ApiTestBase {
     @Test
     @DisplayName("POST extensions: подписки нет, 404")
     void extend_none_returns404() throws Exception {
-        when(subscriptionService.extend(30)).thenThrow(new NotFoundException("Подписка не найдена"));
+        when(subscriptionService.extend(30, "key-1")).thenThrow(new NotFoundException("Подписка не найдена"));
 
+        mvc.perform(post(URL).with(token(WORKSPACE_A, "OWNER")).header(KEY, "key-1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"days\":30}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("POST extensions: нет Idempotency-Key, 400")
+    void extend_missingKey_returns400() throws Exception {
         mvc.perform(post(URL).with(token(WORKSPACE_A, "OWNER")).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"days\":30}"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(subscriptionService);
+    }
+
+    @Test
+    @DisplayName("POST extensions: пустой Idempotency-Key, 400")
+    void extend_blankKey_returns400() throws Exception {
+        mvc.perform(post(URL).with(token(WORKSPACE_A, "OWNER")).header(KEY, "  ")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"days\":30}"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(subscriptionService);
+    }
+
+    @Test
+    @DisplayName("POST extensions: повтор ключа, 409")
+    void extend_duplicateKey_returns409() throws Exception {
+        when(subscriptionService.extend(30, "key-1")).thenThrow(new ConflictException("Уже выполнено"));
+
+        mvc.perform(post(URL).with(token(WORKSPACE_A, "OWNER")).header(KEY, "key-1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"days\":30}"))
+                .andExpect(status().isConflict());
     }
 }
