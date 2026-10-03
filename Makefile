@@ -9,7 +9,7 @@ NEEDLIB = test -n "$(LIB)" || { echo "LIB не задан: common-web, common-se
 NEED   = test -n "$(SVC)" || { echo "SVC не задан, пример: make build SVC=task-service"; exit 1; }
 DC     = docker compose -f infra/compose/docker-compose.yml
 
-.PHONY: help orchestrator check-env build test test-class it run image up down ps logs wt-clean realm-check smoke run-bg stop changed-services test-lib build-lib changed-libs compose-config kube-check
+.PHONY: help orchestrator check-env build test test-class it run image up down ps logs wt-clean realm-check smoke run-bg stop changed-services test-lib build-lib changed-libs compose-config kube-check image-digest
 
 help: ## список команд
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## / : /'
@@ -72,6 +72,10 @@ image: ## docker-образ сервиса (bootJar + Dockerfile сервиса)
 	@$(NEED)
 	@test -f backend/services/$(SVC)/Dockerfile || { echo "нет Dockerfile у $(SVC)"; exit 1; }
 	@$(Q) "cd backend && ./gradlew -q --console=plain :services:$(SVC):bootJar && cp \$$(ls services/$(SVC)/build/libs/*.jar | grep -v -- -plain.jar | head -n 1) services/$(SVC)/build/app.jar && docker build -q -t odysseus/$(SVC):$(TAG) services/$(SVC)"
+
+image-digest: ## дайджест базового образа для пина в Dockerfile: make image-digest IMG=eclipse-temurin:25-jdk
+	@test -n "$(IMG)" || { echo "нужен IMG=<образ:тег>"; exit 1; }
+	@docker buildx imagetools inspect $(IMG) --format '{{json .Manifest.Digest}}'
 
 changed-services: ## JSON-список изменённых сервисов относительно BASE: make changed-services BASE=origin/main
 	@scripts/changed-services.sh $(BASE)
