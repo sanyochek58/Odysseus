@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.odysseus.workspace.event.SubscriptionChangedEvent;
+import com.odysseus.events.SubscriptionChangedEvent;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;

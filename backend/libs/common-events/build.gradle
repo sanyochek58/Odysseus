@@ -1,0 +1,15 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    // Версии Spring Boot из BOM (версия в каталоге), стартеры без версий
+    api platform(libs.spring.boot.dependencies)
+    api libs.spring.boot.starter.data.jpa
+    api libs.spring.boot.starter.kafka
+    api libs.spring.boot.starter.jackson
+
+    testImplementation platform(libs.spring.boot.dependencies)
+    testImplementation libs.spring.boot.starter.test
+    testRuntimeOnly libs.junit.platform.launcher
+}

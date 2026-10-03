@@ -1,6 +1,5 @@
-package com.odysseus.workspace.repository;
+package com.odysseus.events.outbox.store;
 
-import com.odysseus.workspace.entity.Outbox;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
