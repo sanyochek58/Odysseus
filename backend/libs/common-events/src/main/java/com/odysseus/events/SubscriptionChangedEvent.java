@@ -1,4 +1,4 @@
-package com.odysseus.workspace.event;
+package com.odysseus.events;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -12,7 +12,7 @@ public record SubscriptionChangedEvent(
         Instant occurredAt,
         UUID workspaceId,
         int version,
-        Instant expiresAt) {
+        Instant expiresAt) implements DomainEvent {
 
     public static final String TOPIC = "workspace.subscription.changed";
     public static final int CURRENT_VERSION = 1;

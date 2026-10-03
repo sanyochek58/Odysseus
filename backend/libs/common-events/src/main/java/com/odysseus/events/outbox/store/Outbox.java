@@ -1,4 +1,4 @@
-package com.odysseus.workspace.entity;
+package com.odysseus.events.outbox.store;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

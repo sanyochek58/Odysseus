@@ -11,6 +11,7 @@ dependencies {
     implementation libs.spring.boot.starter.validation
     implementation libs.spring.boot.starter.actuator
     implementation libs.spring.boot.starter.oauth2.resource.server
+    implementation project(":libs:common-events")
     implementation libs.spring.boot.starter.kafka
     implementation libs.springdoc.openapi.webmvc.ui
     implementation libs.mapstruct
@@ -24,4 +25,9 @@ dependencies {
     testImplementation libs.testcontainers.kafka
     testImplementation libs.testcontainers.junit.jupiter
     testRuntimeOnly libs.junit.platform.launcher
+}
+
+// Юнит-тесты используемой библиотеки прогоняются вместе с сервисом (make test-class/build SVC=...)
+tasks.named('test') {
+    dependsOn ':libs:common-events:test'
 }

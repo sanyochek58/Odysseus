@@ -1,3 +1,4 @@
 rootProject.name = 'odysseus'
 
+include ':libs:common-events'
 include ':services:workspace-service'

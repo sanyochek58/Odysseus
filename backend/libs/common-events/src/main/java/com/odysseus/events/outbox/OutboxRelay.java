@@ -1,21 +1,19 @@
-package com.odysseus.workspace.event;
+package com.odysseus.events.outbox;
 
-import com.odysseus.workspace.entity.Outbox;
-import com.odysseus.workspace.repository.OutboxRepository;
+import com.odysseus.events.outbox.store.Outbox;
+import com.odysseus.events.outbox.store.OutboxRepository;
 import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Отправляет пачку неотправленных строк outbox в Kafka (at-least-once). Строки блокируются
  * {@code FOR UPDATE SKIP LOCKED}, поэтому параллельные реплики не дублируют отправку.
- * Вызывается {@link OutboxPublisher} в системном контексте; отдельный бин ради работы @Transactional.
+ * Вызывается {@link OutboxPublisher}; отдельный бин ради работы @Transactional.
  */
-@Component
 @RequiredArgsConstructor
 public class OutboxRelay {
 

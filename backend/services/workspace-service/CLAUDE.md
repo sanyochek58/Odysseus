@@ -8,9 +8,9 @@
 - `Member`: userId (sub), email, role (OWNER, ADMIN, TECH_LEAD, MANAGER, MEMBER). Уникален (workspace_id, user_id). Всегда остаётся хотя бы один OWNER (проверка под PESSIMISTIC_WRITE на строках OWNER).
 - `Invitation`: email (lower-case), role (не OWNER), status PENDING/ACCEPTED/REVOKED, срок 7 дней. Один PENDING на email.
 - `Subscription`: одна на workspace, expiresAt. Пробный срок 30 дней создаётся вместе с workspace.
-- `outbox`, `processed_events`: по `docs/guides/outbox.md`, реализованы внутри сервиса (в `libs/common-events` пусто).
+- `outbox`, `processed_events`: по `docs/guides/outbox.md`, реализация в `libs/common-events` (сервис подключает её, свои таблицы `002-outbox.yaml`, бин `TenantScope` в `config/TenantScopeConfig`).
 
-Все тенантные сущности с `@TenantId workspaceId`; `Outbox` без него (читается планировщиком в системном контексте).
+Все тенантные сущности с `@TenantId workspaceId`; `Outbox` (из `common-events`) без него (читается планировщиком в системном контексте).
 
 ## API (`/api/v1`, JWT обязателен, ошибки ProblemDetail)
 - JWT: issuer `KEYCLOAK_ISSUER_URI`, claim `aud` должен содержать `KEYCLOAK_AUDIENCE` (по умолчанию `odysseus-api`), иначе 401; пустое значение роняет старт.
@@ -23,8 +23,8 @@
 - Списки с `Pageable`; ответ `{content: [...], page: {size, number, totalElements, totalPages}}` (`PageSerializationMode.VIA_DTO`). Чужой ресурс это 404, не 403.
 
 ## События (Kafka через outbox)
-- `workspace.subscription.changed` (key = workspaceId): `SubscriptionChangedEvent(eventId, occurredAt, workspaceId, version=1, expiresAt)`, пакет `event`. Публикуется при создании workspace и продлении. Потребители держат копию `workspace_subscription(workspace_id, expires_at)` (ADR-001).
-- Публикатор `OutboxPublisher` (@Scheduled, системный контекст) через `OutboxRelay`: `FOR UPDATE SKIP LOCKED`, at-least-once. Параметры `odysseus.outbox.batch-size`, `odysseus.outbox.poll-interval-ms`. Kafka: `KAFKA_BOOTSTRAP_SERVERS`.
+- `workspace.subscription.changed` (key = workspaceId): `SubscriptionChangedEvent(eventId, occurredAt, workspaceId, version=1, expiresAt)`, класс в `com.odysseus.events` (common-events). Публикуется при создании workspace и продлении. Потребители держат копию `workspace_subscription(workspace_id, expires_at)` (ADR-001).
+- Публикатор `OutboxPublisher` из `common-events` (@Scheduled, системный контекст) через `OutboxRelay`: `FOR UPDATE SKIP LOCKED`, at-least-once. Параметры `odysseus.outbox.batch-size`, `odysseus.outbox.poll-interval-ms`. Kafka: `KAFKA_BOOTSTRAP_SERVERS`.
 - Консьюмеров нет; таблица `processed_events` создана для будущих.
 
 ## Допущения

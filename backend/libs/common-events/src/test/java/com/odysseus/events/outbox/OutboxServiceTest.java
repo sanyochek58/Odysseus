@@ -1,12 +1,12 @@
-package com.odysseus.workspace.service;
+package com.odysseus.events.outbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import com.odysseus.workspace.entity.Outbox;
-import com.odysseus.workspace.event.SubscriptionChangedEvent;
-import com.odysseus.workspace.repository.OutboxRepository;
+import com.odysseus.events.SubscriptionChangedEvent;
+import com.odysseus.events.outbox.store.Outbox;
+import com.odysseus.events.outbox.store.OutboxRepository;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -36,5 +36,22 @@ class OutboxServiceTest {
         assertThat(row.getTopic()).isEqualTo("workspace.subscription.changed");
         assertThat(row.getWorkspaceId()).isEqualTo(workspaceId);
         assertThat(row.getPayload()).contains(eventId.toString()).contains("expiresAt");
+    }
+
+    @Test
+    @DisplayName("save: короткая форма берёт eventId и workspaceId из конверта")
+    void save_envelope_usesEnvelopeFields() {
+        UUID eventId = UUID.randomUUID();
+        UUID workspaceId = UUID.randomUUID();
+        UUID aggregateId = UUID.randomUUID();
+        var event = new SubscriptionChangedEvent(eventId, Instant.now(), workspaceId, 1, Instant.now());
+
+        service.save("t", aggregateId, event);
+
+        ArgumentCaptor<Outbox> captor = ArgumentCaptor.forClass(Outbox.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getId()).isEqualTo(eventId);
+        assertThat(captor.getValue().getWorkspaceId()).isEqualTo(workspaceId);
+        assertThat(captor.getValue().getAggregateId()).isEqualTo(aggregateId);
     }
 }
