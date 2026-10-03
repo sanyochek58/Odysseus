@@ -1,5 +1,7 @@
 # Outbox и консьюмеры
 
+Архитектурное решение: [ADR-002: сущность outbox в libs/common-events](../adr/002-outbox-entity-in-libs.md).
+
 Реализация живёт один раз в `libs/common-events` (auto-configuration `OutboxAutoConfiguration`). Сервисы её подключают, не переписывают.
 
 Подключение в сервисе:
