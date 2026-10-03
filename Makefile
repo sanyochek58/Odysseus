@@ -1,11 +1,13 @@
 # Все команды проекта. Список: make help
 SVC   ?=
 CLASS ?=
+TAG   ?= latest
+BASE  ?= origin/main
 Q      = scripts/quiet.sh
 NEED   = test -n "$(SVC)" || { echo "SVC не задан, пример: make build SVC=task-service"; exit 1; }
 DC     = docker compose -f infra/compose/docker-compose.yml
 
-.PHONY: help orchestrator check-env build test test-class it run image up down ps logs wt-clean realm-check smoke run-bg stop
+.PHONY: help orchestrator check-env build test test-class it run image up down ps logs wt-clean realm-check smoke run-bg stop changed-services
 
 help: ## список команд
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## / : /'
@@ -45,15 +47,19 @@ stop: ## остановить сервис, запущенный через run-
 	@$(NEED)
 	@scripts/stop-local.sh $(SVC)
 
-image: ## docker-образ сервиса
+image: ## docker-образ сервиса (bootJar + Dockerfile сервиса): make image SVC=workspace-service
 	@$(NEED)
-	@$(Q) "cd backend && ./gradlew -q :services:$(SVC):bootJar && docker build -q -t odysseus/$(SVC) services/$(SVC)"
+	@test -f backend/services/$(SVC)/Dockerfile || { echo "нет Dockerfile у $(SVC)"; exit 1; }
+	@$(Q) "cd backend && ./gradlew -q --console=plain :services:$(SVC):bootJar && cp \$$(ls services/$(SVC)/build/libs/*.jar | grep -v -- -plain.jar | head -n 1) services/$(SVC)/build/app.jar && docker build -q -t odysseus/$(SVC):$(TAG) services/$(SVC)"
 
-up: ## поднять postgres, kafka, keycloak
-	@$(DC) up -d
+changed-services: ## JSON-список изменённых сервисов относительно BASE: make changed-services BASE=origin/main
+	@scripts/changed-services.sh $(BASE)
+
+up: ## поднять postgres, kafka, keycloak; с PROFILE=app ещё и сервисы из образов (make image)
+	@$(DC) $(if $(PROFILE),--profile $(PROFILE)) up -d
 
 down: ## остановить окружение
-	@$(DC) down
+	@$(DC) --profile app down
 
 ps: ## состояние контейнеров
 	@$(DC) ps

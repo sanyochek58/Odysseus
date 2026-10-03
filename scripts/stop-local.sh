@@ -3,7 +3,8 @@
 SVC=${1:?SVC не задан}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PIDF="$ROOT/backend/services/$SVC/build/run-local.pid"
-case "$SVC" in workspace-service) PORT=8081 ;; *) PORT= ;; esac
+. "$ROOT/scripts/lib-ports.sh"
+PORT=$(svc_port "$SVC") || exit 1
 [ -f "$PIDF" ] || { echo "нет pid, $SVC не запущен через make run-bg"; exit 0; }
 pid=$(tr -dc '0-9' < "$PIDF")
 

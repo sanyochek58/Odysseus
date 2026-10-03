@@ -56,6 +56,33 @@ services:
     volumes:
       - ../keycloak/realm-odysseus.json:/opt/keycloak/data/import/realm-odysseus.json:ro
 
+  # Сервисы приложения: профиль app, образ собирается make image SVC=workspace-service.
+  # Запуск: make up PROFILE=app. Порт по docs/ports.md.
+  workspace-service:
+    profiles: ["app"]
+    image: odysseus/workspace-service:${IMAGE_TAG:-latest}
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    environment:
+      SERVER_PORT: 8081
+      DB_URL: jdbc:postgresql://postgres:5432/workspace_db
+      DB_USERNAME: ${POSTGRES_USER:?задайте POSTGRES_USER в .env}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      # issuer должен совпадать с iss токена; в dev keycloak берёт его из Host запроса (см. docs/guides/local-env.md)
+      KEYCLOAK_ISSUER_URI: ${APP_KEYCLOAK_ISSUER_URI:-http://host.docker.internal:8180/realms/odysseus}
+      KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-odysseus-api}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8081:8081"
+
 volumes:
   postgres-data:
   kafka-data:
