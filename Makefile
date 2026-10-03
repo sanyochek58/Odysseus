@@ -1,13 +1,15 @@
 # Все команды проекта. Список: make help
 SVC   ?=
 CLASS ?=
+LIB   ?=
 TAG   ?= latest
 BASE  ?= origin/main
 Q      = scripts/quiet.sh
+NEEDLIB = test -n "$(LIB)" || { echo "LIB не задан: common-web, common-security или common-events"; exit 1; }; test -d backend/libs/$(LIB) || { echo "нет библиотеки $(LIB)"; exit 1; }
 NEED   = test -n "$(SVC)" || { echo "SVC не задан, пример: make build SVC=task-service"; exit 1; }
 DC     = docker compose -f infra/compose/docker-compose.yml
 
-.PHONY: help orchestrator check-env build test test-class it run image up down ps logs wt-clean realm-check smoke run-bg stop changed-services
+.PHONY: help orchestrator check-env build test test-class it run image up down ps logs wt-clean realm-check smoke run-bg stop changed-services test-lib build-lib changed-libs compose-config kube-check
 
 help: ## список команд
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## / : /'
@@ -46,6 +48,25 @@ run-bg: ## запуск сервиса в фоне и ожидание health: m
 stop: ## остановить сервис, запущенный через run-bg
 	@$(NEED)
 	@scripts/stop-local.sh $(SVC)
+
+test-lib: ## юнит-тесты библиотеки: make test-lib LIB=common-web
+	@$(NEEDLIB)
+	@if [ -f backend/libs/$(LIB)/build.gradle ]; then $(Q) "cd backend && ./gradlew -q --console=plain :libs:$(LIB):test"; else echo "libs/$(LIB) без build.gradle, пропуск"; fi
+
+build-lib: ## сборка и тесты библиотеки: make build-lib LIB=common-web
+	@$(NEEDLIB)
+	@if [ -f backend/libs/$(LIB)/build.gradle ]; then $(Q) "cd backend && ./gradlew -q --console=plain :libs:$(LIB):build"; else echo "libs/$(LIB) без build.gradle, пропуск"; fi
+
+changed-libs: ## JSON-список изменённых библиотек относительно BASE: make changed-libs BASE=origin/main
+	@scripts/changed-libs.sh $(BASE)
+
+compose-config: ## проверка валидности compose; без infra/compose/.env берётся .env.example (только для проверки)
+	@f=infra/compose/.env; test -f $$f || f=infra/compose/.env.example; $(DC) --env-file $$f --profile app config -q && echo "compose ok ($$f)"
+
+kube-check: ## проверка манифестов k8s без кластера (kubectl kustomize + dry-run=client)
+	@command -v kubectl > /dev/null || { echo "kubectl не найден"; exit 1; }
+	@kubectl kustomize infra/k8s/base > /dev/null && echo "kustomize ok"
+	@kubectl kustomize infra/k8s/base | kubectl apply --dry-run=client --validate=false -f - > /dev/null && echo "dry-run ok"
 
 image: ## docker-образ сервиса (bootJar + Dockerfile сервиса): make image SVC=workspace-service
 	@$(NEED)

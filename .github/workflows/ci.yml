@@ -17,13 +17,35 @@ jobs:
     timeout-minutes: 5
     outputs:
       services: ${{ steps.diff.outputs.services }}
+      libs: ${{ steps.diff.outputs.libs }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - id: diff
         name: Изменённые сервисы
-        run: echo "services=$(make changed-services BASE=origin/${{ github.base_ref }})" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "services=$(make changed-services BASE=origin/${{ github.base_ref }})" >> "$GITHUB_OUTPUT"
+          echo "libs=$(make changed-libs BASE=origin/${{ github.base_ref }})" >> "$GITHUB_OUTPUT"
+
+  lib-tests:
+    name: Юнит-тесты библиотеки (${{ matrix.lib }})
+    needs: changes
+    if: needs.changes.outputs.libs != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        lib: ${{ fromJSON(needs.changes.outputs.libs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: make test-lib LIB=${{ matrix.lib }}
 
   build:
     name: Сборка и юнит-тесты (${{ matrix.service }})
